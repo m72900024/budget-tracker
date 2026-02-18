@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>計畫經費追蹤系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: { primary: '#4f46e5', secondary: '#10b981', warning: '#f59e0b', danger: '#ef4444' },
+        fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'] }
+      }}
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+    .card-shadow { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06); }
+    .modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:50;opacity:0;pointer-events:none;transition:opacity .3s }
+    .modal-backdrop.open { opacity:1;pointer-events:auto }
+    .modal-backdrop.open .modal-box { transform:scale(1);opacity:1 }
+    .modal-box { transform:scale(.95);opacity:0;transition:all .3s }
+    .progress-bar { transition: width 0.5s ease; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex justify-between items-center flex-wrap gap-3">
+        <h1 class="text-3xl font-extrabold text-primary flex items-center gap-2">
+          💰 計畫經費追蹤系統
+        </h1>
+        <div class="flex gap-2">
+          <button onclick="exportAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">📤 匯出</button>
+          <button onclick="importAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">📥 匯入</button>
+          <input type="file" id="import-file" accept=".json" class="hidden">
+        </div>
+      </div>
+      <p class="text-gray-500 text-sm mt-1">管理各項計畫預算與核銷進度</p>
+    </header>
+
+    <!-- 面板：計畫總覽 -->
+    <div id="dashboard-view">
+      <!-- 統計卡片 -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500">計畫數</p>
+          <p id="stat-projects" class="text-3xl font-extrabold text-primary">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500">總預算</p>
+          <p id="stat-budget" class="text-3xl font-extrabold text-secondary">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500">已核銷</p>
+          <p id="stat-used" class="text-3xl font-extrabold text-warning">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500">剩餘</p>
+          <p id="stat-remain" class="text-3xl font-extrabold text-danger">0</p>
+        </div>
+      </div>
+
+      <!-- 計畫卡片列表 -->
+      <div id="project-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+
+      <!-- 新增計畫按鈕 -->
+      <div class="mt-6 text-center">
+        <button onclick="showAddProjectModal()" class="bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-lg">
+          ＋ 新增計畫
+        </button>
+      </div>
+    </div>
+
+    <!-- 計畫詳情頁 -->
+    <div id="detail-view" class="hidden">
+      <button onclick="backToDashboard()" class="mb-4 text-primary hover:underline font-bold flex items-center gap-1">← 回到總覽</button>
+
+      <div class="bg-white p-6 rounded-xl card-shadow mb-6">
+        <div class="flex justify-between items-start flex-wrap gap-3">
+          <div>
+            <h2 id="detail-title" class="text-2xl font-extrabold text-gray-800"></h2>
+            <p id="detail-desc" class="text-gray-500 mt-1"></p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="editCurrentProject()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">✏️ 編輯計畫</button>
+            <button onclick="deleteCurrentProject()" class="bg-red-100 hover:bg-red-200 text-danger font-bold py-2 px-4 rounded-lg text-sm transition">🗑️ 刪除</button>
+          </div>
+        </div>
+        <!-- 計畫總進度 -->
+        <div class="mt-4">
+          <div class="flex justify-between text-sm mb-1">
+            <span id="detail-used-label" class="text-gray-600"></span>
+            <span id="detail-remain-label" class="text-gray-600"></span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-4">
+            <div id="detail-progress" class="progress-bar bg-primary rounded-full h-4"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 經費類別列表 -->
+      <div id="categories-list" class="space-y-4"></div>
+
+      <div class="mt-4">
+        <button onclick="showAddCategoryModal()" class="bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg transition">
+          ＋ 新增經費類別
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 新增/編輯計畫 -->
+  <div id="modal-project" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 id="modal-project-title" class="text-xl font-bold mb-4">新增計畫</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">計畫名稱</label>
+          <input type="text" id="inp-project-name" placeholder="例：數位學習計畫" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">說明（選填）</label>
+          <input type="text" id="inp-project-desc" placeholder="例：112年度教育部補助" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="saveProject()" class="flex-1 bg-primary hover:bg-indigo-600 text-white font-bold py-3 rounded-lg transition">儲存</button>
+        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 新增/編輯經費類別 -->
+  <div id="modal-category" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 id="modal-category-title" class="text-xl font-bold mb-4">新增經費類別</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">類別名稱</label>
+          <input type="text" id="inp-cat-name" placeholder="例：人事費" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">預算金額</label>
+          <input type="number" id="inp-cat-budget" placeholder="50000" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="saveCategory()" class="flex-1 bg-secondary hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition">儲存</button>
+        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 新增/編輯核銷項目 -->
+  <div id="modal-expense" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 id="modal-expense-title" class="text-xl font-bold mb-4">新增核銷項目</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">項目名稱</label>
+          <input type="text" id="inp-exp-name" placeholder="例：講師鐘點費" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">金額</label>
+          <input type="number" id="inp-exp-amount" placeholder="3000" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+          <input type="date" id="inp-exp-date" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">收據/單據編號（選填）</label>
+          <input type="text" id="inp-exp-receipt" placeholder="例：A-001" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">核銷狀態</label>
+          <select id="inp-exp-status" class="w-full p-3 border border-gray-300 rounded-lg bg-white">
+            <option value="pending">⏳ 待核銷</option>
+            <option value="submitted">📝 已送件</option>
+            <option value="approved">✅ 已核銷</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">備註（選填）</label>
+          <input type="text" id="inp-exp-note" placeholder="" class="w-full p-3 border border-gray-300 rounded-lg">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="saveExpense()" class="flex-1 bg-warning hover:bg-amber-600 text-white font-bold py-3 rounded-lg transition">儲存</button>
+        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 資料模型 =====
+    // 存在 localStorage，結構：
+    // { projects: [ { id, name, desc, categories: [ { id, name, budget, expenses: [ { id, name, amount, date, receipt, status, note } ] } ] } ] }
+
+    const STORAGE_KEY = 'budget-tracker-data';
+    let data = { projects: [] };
+    let currentProjectId = null;
+    let editingProjectId = null;
+    let editingCategoryId = null;
+    let editingExpenseInfo = null; // { catId, expId }
+
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    function load() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) { try { data = JSON.parse(raw); } catch(e) {} }
+    }
+    function fmt(n) { return n.toLocaleString('zh-TW'); }
+
+    const statusMap = {
+      pending: { label: '⏳ 待核銷', color: 'bg-gray-100 text-gray-600' },
+      submitted: { label: '📝 已送件', color: 'bg-blue-100 text-blue-700' },
+      approved: { label: '✅ 已核銷', color: 'bg-green-100 text-green-700' }
+    };
+
+    // ===== 計算 =====
+    function calcCategory(cat) {
+      const used = cat.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+      return { budget: cat.budget || 0, used, remain: (cat.budget || 0) - used };
+    }
+
+    function calcProject(proj) {
+      let budget = 0, used = 0;
+      proj.categories.forEach(cat => {
+        const c = calcCategory(cat);
+        budget += c.budget;
+        used += c.used;
+      });
+      return { budget, used, remain: budget - used, percent: budget > 0 ? Math.round(used / budget * 100) : 0 };
+    }
+
+    function calcAll() {
+      let budget = 0, used = 0;
+      data.projects.forEach(p => {
+        const c = calcProject(p);
+        budget += c.budget;
+        used += c.used;
+      });
+      return { budget, used, remain: budget - used };
+    }
+
+    // ===== 面板渲染 =====
+    function renderDashboard() {
+      const all = calcAll();
+      document.getElementById('stat-projects').textContent = data.projects.length;
+      document.getElementById('stat-budget').textContent = '$' + fmt(all.budget);
+      document.getElementById('stat-used').textContent = '$' + fmt(all.used);
+      document.getElementById('stat-remain').textContent = '$' + fmt(all.remain);
+
+      const container = document.getElementById('project-cards');
+      container.innerHTML = '';
+
+      if (data.projects.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400"><p class="text-5xl mb-4">📋</p><p class="text-lg">尚無計畫，點擊下方按鈕新增</p></div>';
+        return;
+      }
+
+      data.projects.forEach(proj => {
+        const c = calcProject(proj);
+        const catCount = proj.categories.length;
+        const expCount = proj.categories.reduce((s, cat) => s + cat.expenses.length, 0);
+        const progressColor = c.percent > 90 ? 'bg-danger' : c.percent > 70 ? 'bg-warning' : 'bg-primary';
+
+        const card = document.createElement('div');
+        card.className = 'bg-white p-6 rounded-xl card-shadow hover:shadow-lg transition cursor-pointer transform hover:scale-[1.02]';
+        card.onclick = () => openProject(proj.id);
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="text-xl font-bold text-gray-800">${proj.name}</h3>
+            <span class="text-xs px-2 py-1 rounded-full ${c.percent > 90 ? 'bg-red-100 text-danger' : c.percent > 70 ? 'bg-yellow-100 text-warning' : 'bg-green-100 text-secondary'} font-bold">
+              ${c.percent}%
+            </span>
+          </div>
+          ${proj.desc ? `<p class="text-sm text-gray-500 mb-3">${proj.desc}</p>` : ''}
+          <div class="w-full bg-gray-200 rounded-full h-3 mb-3">
+            <div class="progress-bar ${progressColor} rounded-full h-3" style="width:${c.percent}%"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center text-sm">
+            <div><p class="text-gray-400">預算</p><p class="font-bold text-gray-800">$${fmt(c.budget)}</p></div>
+            <div><p class="text-gray-400">已用</p><p class="font-bold text-warning">$${fmt(c.used)}</p></div>
+            <div><p class="text-gray-400">剩餘</p><p class="font-bold ${c.remain < 0 ? 'text-danger' : 'text-secondary'}">$${fmt(c.remain)}</p></div>
+          </div>
+          <div class="mt-3 pt-3 border-t flex justify-between text-xs text-gray-400">
+            <span>${catCount} 個類別</span>
+            <span>${expCount} 筆核銷</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ===== 計畫詳情 =====
+    function openProject(id) {
+      currentProjectId = id;
+      document.getElementById('dashboard-view').classList.add('hidden');
+      document.getElementById('detail-view').classList.remove('hidden');
+      renderDetail();
+    }
+
+    function backToDashboard() {
+      currentProjectId = null;
+      document.getElementById('detail-view').classList.add('hidden');
+      document.getElementById('dashboard-view').classList.remove('hidden');
+      renderDashboard();
+    }
+
+    function getProject(id) { return data.projects.find(p => p.id === (id || currentProjectId)); }
+
+    function renderDetail() {
+      const proj = getProject();
+      if (!proj) return backToDashboard();
+      const c = calcProject(proj);
+
+      document.getElementById('detail-title').textContent = proj.name;
+      document.getElementById('detail-desc').textContent = proj.desc || '';
+      document.getElementById('detail-used-label').textContent = `已用 $${fmt(c.used)} / $${fmt(c.budget)}`;
+      document.getElementById('detail-remain-label').textContent = `剩餘 $${fmt(c.remain)} (${c.percent}%)`;
+      document.getElementById('detail-progress').style.width = c.percent + '%';
+      document.getElementById('detail-progress').className = `progress-bar rounded-full h-4 ${c.percent > 90 ? 'bg-danger' : c.percent > 70 ? 'bg-warning' : 'bg-primary'}`;
+
+      const list = document.getElementById('categories-list');
+      list.innerHTML = '';
+
+      if (proj.categories.length === 0) {
+        list.innerHTML = '<div class="text-center py-8 text-gray-400"><p class="text-lg">尚無經費類別，點擊下方按鈕新增</p></div>';
+        return;
+      }
+
+      proj.categories.forEach(cat => {
+        const cc = calcCategory(cat);
+        const pct = cc.budget > 0 ? Math.round(cc.used / cc.budget * 100) : 0;
+        const progressColor = pct > 90 ? 'bg-danger' : pct > 70 ? 'bg-warning' : 'bg-secondary';
+
+        const div = document.createElement('div');
+        div.className = 'bg-white rounded-xl card-shadow overflow-hidden';
+        div.innerHTML = `
+          <div class="p-5">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-lg font-bold text-gray-800">${cat.name}</h3>
+              <div class="flex gap-2 items-center">
+                <span class="text-sm font-bold ${cc.remain < 0 ? 'text-danger' : 'text-secondary'}">剩餘 $${fmt(cc.remain)}</span>
+                <button onclick="event.stopPropagation();editCategory('${cat.id}')" class="text-gray-400 hover:text-primary text-sm">✏️</button>
+                <button onclick="event.stopPropagation();deleteCategory('${cat.id}')" class="text-gray-400 hover:text-danger text-sm">🗑️</button>
+              </div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+              <span>$${fmt(cc.used)} / $${fmt(cc.budget)}</span>
+              <span>${pct}%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div class="progress-bar ${progressColor} rounded-full h-2" style="width:${pct}%"></div>
+            </div>
+
+            <!-- 核銷明細 -->
+            <div class="space-y-2">
+              ${cat.expenses.length === 0 ? '<p class="text-sm text-gray-400 text-center py-2">尚無核銷紀錄</p>' :
+                cat.expenses.map(exp => {
+                  const st = statusMap[exp.status] || statusMap.pending;
+                  return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="font-medium text-gray-800">${exp.name}</span>
+                          <span class="px-2 py-0.5 text-xs rounded-full ${st.color} font-bold">${st.label}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">
+                          ${exp.date || ''} ${exp.receipt ? '· #' + exp.receipt : ''} ${exp.note ? '· ' + exp.note : ''}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <span class="font-bold text-gray-800">$${fmt(exp.amount || 0)}</span>
+                        <div class="hidden group-hover:flex gap-1">
+                          <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-primary text-xs">✏️</button>
+                          <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
+                        </div>
+                      </div>
+                    </div>`;
+                }).join('')}
+            </div>
+
+            <button onclick="showAddExpenseModal('${cat.id}')" class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-warning hover:text-warning transition text-sm font-bold">
+              ＋ 新增核銷項目
+            </button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // ===== Modal 控制 =====
+    function closeAllModals() {
+      document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
+    }
+
+    function showAddProjectModal() {
+      editingProjectId = null;
+      document.getElementById('modal-project-title').textContent = '新增計畫';
+      document.getElementById('inp-project-name').value = '';
+      document.getElementById('inp-project-desc').value = '';
+      document.getElementById('modal-project').classList.add('open');
+      document.getElementById('inp-project-name').focus();
+    }
+
+    window.editCurrentProject = function() {
+      const proj = getProject();
+      if (!proj) return;
+      editingProjectId = proj.id;
+      document.getElementById('modal-project-title').textContent = '編輯計畫';
+      document.getElementById('inp-project-name').value = proj.name;
+      document.getElementById('inp-project-desc').value = proj.desc || '';
+      document.getElementById('modal-project').classList.add('open');
+    };
+
+    window.saveProject = function() {
+      const name = document.getElementById('inp-project-name').value.trim();
+      if (!name) return alert('請輸入計畫名稱');
+      const desc = document.getElementById('inp-project-desc').value.trim();
+
+      if (editingProjectId) {
+        const proj = getProject(editingProjectId);
+        if (proj) { proj.name = name; proj.desc = desc; }
+      } else {
+        data.projects.push({ id: uid(), name, desc, categories: [] });
+      }
+      save();
+      closeAllModals();
+      if (currentProjectId) renderDetail();
+      renderDashboard();
+    };
+
+    window.deleteCurrentProject = function() {
+      if (!confirm('確定刪除此計畫？所有經費類別和核銷紀錄都會一併刪除！')) return;
+      data.projects = data.projects.filter(p => p.id !== currentProjectId);
+      save();
+      backToDashboard();
+    };
+
+    // --- 經費類別 ---
+    function showAddCategoryModal() {
+      editingCategoryId = null;
+      document.getElementById('modal-category-title').textContent = '新增經費類別';
+      document.getElementById('inp-cat-name').value = '';
+      document.getElementById('inp-cat-budget').value = '';
+      document.getElementById('modal-category').classList.add('open');
+      document.getElementById('inp-cat-name').focus();
+    }
+
+    window.editCategory = function(catId) {
+      const proj = getProject();
+      const cat = proj?.categories.find(c => c.id === catId);
+      if (!cat) return;
+      editingCategoryId = catId;
+      document.getElementById('modal-category-title').textContent = '編輯經費類別';
+      document.getElementById('inp-cat-name').value = cat.name;
+      document.getElementById('inp-cat-budget').value = cat.budget;
+      document.getElementById('modal-category').classList.add('open');
+    };
+
+    window.saveCategory = function() {
+      const name = document.getElementById('inp-cat-name').value.trim();
+      const budget = parseInt(document.getElementById('inp-cat-budget').value) || 0;
+      if (!name) return alert('請輸入類別名稱');
+
+      const proj = getProject();
+      if (!proj) return;
+
+      if (editingCategoryId) {
+        const cat = proj.categories.find(c => c.id === editingCategoryId);
+        if (cat) { cat.name = name; cat.budget = budget; }
+      } else {
+        proj.categories.push({ id: uid(), name, budget, expenses: [] });
+      }
+      save();
+      closeAllModals();
+      renderDetail();
+    };
+
+    window.deleteCategory = function(catId) {
+      if (!confirm('確定刪除此類別？所有核銷紀錄都會一併刪除！')) return;
+      const proj = getProject();
+      if (proj) { proj.categories = proj.categories.filter(c => c.id !== catId); save(); renderDetail(); }
+    };
+
+    // --- 核銷項目 ---
+    function showAddExpenseModal(catId) {
+      editingExpenseInfo = null;
+      document.getElementById('modal-expense-title').textContent = '新增核銷項目';
+      document.getElementById('inp-exp-name').value = '';
+      document.getElementById('inp-exp-amount').value = '';
+      document.getElementById('inp-exp-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inp-exp-receipt').value = '';
+      document.getElementById('inp-exp-status').value = 'pending';
+      document.getElementById('inp-exp-note').value = '';
+      editingExpenseInfo = { catId, expId: null };
+      document.getElementById('modal-expense').classList.add('open');
+      document.getElementById('inp-exp-name').focus();
+    }
+
+    window.editExpense = function(catId, expId) {
+      const proj = getProject();
+      const cat = proj?.categories.find(c => c.id === catId);
+      const exp = cat?.expenses.find(e => e.id === expId);
+      if (!exp) return;
+      editingExpenseInfo = { catId, expId };
+      document.getElementById('modal-expense-title').textContent = '編輯核銷項目';
+      document.getElementById('inp-exp-name').value = exp.name;
+      document.getElementById('inp-exp-amount').value = exp.amount;
+      document.getElementById('inp-exp-date').value = exp.date || '';
+      document.getElementById('inp-exp-receipt').value = exp.receipt || '';
+      document.getElementById('inp-exp-status').value = exp.status || 'pending';
+      document.getElementById('inp-exp-note').value = exp.note || '';
+      document.getElementById('modal-expense').classList.add('open');
+    };
+
+    window.saveExpense = function() {
+      const name = document.getElementById('inp-exp-name').value.trim();
+      const amount = parseInt(document.getElementById('inp-exp-amount').value) || 0;
+      if (!name) return alert('請輸入項目名稱');
+      if (!amount) return alert('請輸入金額');
+
+      const date = document.getElementById('inp-exp-date').value;
+      const receipt = document.getElementById('inp-exp-receipt').value.trim();
+      const status = document.getElementById('inp-exp-status').value;
+      const note = document.getElementById('inp-exp-note').value.trim();
+
+      const proj = getProject();
+      const cat = proj?.categories.find(c => c.id === editingExpenseInfo?.catId);
+      if (!cat) return;
+
+      if (editingExpenseInfo.expId) {
+        const exp = cat.expenses.find(e => e.id === editingExpenseInfo.expId);
+        if (exp) { Object.assign(exp, { name, amount, date, receipt, status, note }); }
+      } else {
+        cat.expenses.push({ id: uid(), name, amount, date, receipt, status, note });
+      }
+      save();
+      closeAllModals();
+      renderDetail();
+    };
+
+    window.deleteExpense = function(catId, expId) {
+      if (!confirm('確定刪除此核銷紀錄？')) return;
+      const proj = getProject();
+      const cat = proj?.categories.find(c => c.id === catId);
+      if (cat) { cat.expenses = cat.expenses.filter(e => e.id !== expId); save(); renderDetail(); }
+    };
+
+    // ===== 匯出 / 匯入 =====
+    window.exportAll = function() {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `budget-tracker-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    };
+
+    window.importAll = function() {
+      document.getElementById('import-file').click();
+    };
+
+    document.getElementById('import-file').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          if (!imported.projects) throw new Error('格式不正確');
+          if (!confirm(`匯入 ${imported.projects.length} 個計畫？這會取代現有資料！`)) return;
+          data = imported;
+          save();
+          currentProjectId = null;
+          document.getElementById('detail-view').classList.add('hidden');
+          document.getElementById('dashboard-view').classList.remove('hidden');
+          renderDashboard();
+        } catch (err) { alert('匯入失敗: ' + err.message); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    // ===== 啟動 =====
+    load();
+    renderDashboard();
+  </script>
+</body>
+</html>
