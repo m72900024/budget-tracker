@@ -34,6 +34,7 @@
           💰 計畫經費追蹤系統
         </h1>
         <div class="flex gap-2">
+          <button onclick="showVendorModal()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商管理</button>
           <button onclick="exportAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">📤 匯出</button>
           <button onclick="importAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">📥 匯入</button>
           <input type="file" id="import-file" accept=".json" class="hidden">
@@ -173,6 +174,15 @@
           <input type="date" id="inp-exp-date" class="w-full p-3 border border-gray-300 rounded-lg">
         </div>
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">廠商</label>
+          <div class="flex gap-2">
+            <select id="inp-exp-vendor" class="flex-1 p-3 border border-gray-300 rounded-lg bg-white">
+              <option value="">-- 不指定 --</option>
+            </select>
+            <button onclick="quickAddVendor()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-3 rounded-lg text-sm transition" title="快速新增廠商">＋</button>
+          </div>
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">收據/單據編號（選填）</label>
           <input type="text" id="inp-exp-receipt" placeholder="例：A-001" class="w-full p-3 border border-gray-300 rounded-lg">
         </div>
@@ -196,13 +206,28 @@
     </div>
   </div>
 
+  <!-- Modal: 廠商管理 -->
+  <div id="modal-vendor" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 class="text-xl font-bold mb-4">🏪 廠商管理</h3>
+      <div class="flex gap-2 mb-4">
+        <input type="text" id="inp-vendor-name" placeholder="廠商名稱" class="flex-1 p-3 border border-gray-300 rounded-lg" onkeydown="if(event.key==='Enter')addVendor()">
+        <button onclick="addVendor()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 rounded-lg transition">新增</button>
+      </div>
+      <div id="vendor-list" class="space-y-2 max-h-[50vh] overflow-y-auto"></div>
+      <div class="mt-4">
+        <button onclick="closeAllModals()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ===== 資料模型 =====
     // 存在 localStorage，結構：
     // { projects: [ { id, name, desc, categories: [ { id, name, budget, expenses: [ { id, name, amount, date, receipt, status, note } ] } ] } ] }
 
     const STORAGE_KEY = 'budget-tracker-data';
-    let data = { projects: [] };
+    let data = { projects: [], vendors: [] };
     let currentProjectId = null;
     let editingProjectId = null;
     let editingCategoryId = null;
@@ -212,7 +237,7 @@
     function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
     function load() {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) { try { data = JSON.parse(raw); } catch(e) {} }
+      if (raw) { try { data = JSON.parse(raw); if (!data.vendors) data.vendors = []; } catch(e) {} }
     }
     function fmt(n) { return n.toLocaleString('zh-TW'); }
 
@@ -373,7 +398,7 @@
                           <span class="px-2 py-0.5 text-xs rounded-full ${st.color} font-bold">${st.label}</span>
                         </div>
                         <div class="text-xs text-gray-400 mt-1">
-                          ${exp.date || ''} ${exp.receipt ? '· #' + exp.receipt : ''} ${exp.note ? '· ' + exp.note : ''}
+                          ${exp.date || ''} ${exp.vendor ? '· 🏪' + exp.vendor : ''} ${exp.receipt ? '· #' + exp.receipt : ''} ${exp.note ? '· ' + exp.note : ''}
                         </div>
                       </div>
                       <div class="flex items-center gap-3">
@@ -501,6 +526,8 @@
       document.getElementById('inp-exp-status').value = 'pending';
       document.getElementById('inp-exp-note').value = '';
       editingExpenseInfo = { catId, expId: null };
+      refreshVendorDropdown();
+      document.getElementById('inp-exp-vendor').value = '';
       document.getElementById('modal-expense').classList.add('open');
       document.getElementById('inp-exp-name').focus();
     }
@@ -518,6 +545,8 @@
       document.getElementById('inp-exp-receipt').value = exp.receipt || '';
       document.getElementById('inp-exp-status').value = exp.status || 'pending';
       document.getElementById('inp-exp-note').value = exp.note || '';
+      refreshVendorDropdown();
+      document.getElementById('inp-exp-vendor').value = exp.vendor || '';
       document.getElementById('modal-expense').classList.add('open');
     };
 
@@ -527,6 +556,7 @@
       if (!name) return alert('請輸入項目名稱');
       if (!amount) return alert('請輸入金額');
 
+      const vendor = document.getElementById('inp-exp-vendor').value;
       const date = document.getElementById('inp-exp-date').value;
       const receipt = document.getElementById('inp-exp-receipt').value.trim();
       const status = document.getElementById('inp-exp-status').value;
@@ -538,9 +568,9 @@
 
       if (editingExpenseInfo.expId) {
         const exp = cat.expenses.find(e => e.id === editingExpenseInfo.expId);
-        if (exp) { Object.assign(exp, { name, amount, date, receipt, status, note }); }
+        if (exp) { Object.assign(exp, { name, amount, vendor, date, receipt, status, note }); }
       } else {
-        cat.expenses.push({ id: uid(), name, amount, date, receipt, status, note });
+        cat.expenses.push({ id: uid(), name, amount, vendor, date, receipt, status, note });
       }
       save();
       closeAllModals();
@@ -552,6 +582,72 @@
       const proj = getProject();
       const cat = proj?.categories.find(c => c.id === catId);
       if (cat) { cat.expenses = cat.expenses.filter(e => e.id !== expId); save(); renderDetail(); }
+    };
+
+    // ===== 廠商管理 =====
+    function refreshVendorDropdown() {
+      const select = document.getElementById('inp-exp-vendor');
+      const currentVal = select.value;
+      select.innerHTML = '<option value="">-- 不指定 --</option>';
+      data.vendors.forEach(v => {
+        select.innerHTML += `<option value="${v}">${v}</option>`;
+      });
+      select.value = currentVal;
+    }
+
+    function renderVendorList() {
+      const list = document.getElementById('vendor-list');
+      if (data.vendors.length === 0) {
+        list.innerHTML = '<p class="text-gray-400 text-center py-4">尚無廠商</p>';
+        return;
+      }
+      list.innerHTML = data.vendors.map((v, i) => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <span class="font-medium text-gray-800">🏪 ${v}</span>
+          <button onclick="deleteVendor(${i})" class="text-gray-400 hover:text-danger text-sm">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    window.showVendorModal = function() {
+      renderVendorList();
+      document.getElementById('inp-vendor-name').value = '';
+      document.getElementById('modal-vendor').classList.add('open');
+      document.getElementById('inp-vendor-name').focus();
+    };
+
+    window.addVendor = function() {
+      const name = document.getElementById('inp-vendor-name').value.trim();
+      if (!name) return;
+      if (data.vendors.includes(name)) return alert('此廠商已存在');
+      data.vendors.push(name);
+      data.vendors.sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      save();
+      document.getElementById('inp-vendor-name').value = '';
+      renderVendorList();
+      refreshVendorDropdown();
+    };
+
+    window.deleteVendor = function(index) {
+      if (!confirm(`確定刪除廠商「${data.vendors[index]}」？`)) return;
+      data.vendors.splice(index, 1);
+      save();
+      renderVendorList();
+      refreshVendorDropdown();
+    };
+
+    window.quickAddVendor = function() {
+      const name = prompt('輸入新廠商名稱：');
+      if (!name || !name.trim()) return;
+      if (data.vendors.includes(name.trim())) {
+        document.getElementById('inp-exp-vendor').value = name.trim();
+        return;
+      }
+      data.vendors.push(name.trim());
+      data.vendors.sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      save();
+      refreshVendorDropdown();
+      document.getElementById('inp-exp-vendor').value = name.trim();
     };
 
     // ===== 匯出 / 匯入 =====
