@@ -604,7 +604,10 @@
       list.innerHTML = data.vendors.map((v, i) => `
         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
           <span class="font-medium text-gray-800">🏪 ${v}</span>
-          <button onclick="deleteVendor(${i})" class="text-gray-400 hover:text-danger text-sm">🗑️</button>
+          <div class="flex gap-1">
+            <button onclick="renameVendor(${i})" class="text-gray-400 hover:text-primary text-sm" title="改名">✏️</button>
+            <button onclick="deleteVendor(${i})" class="text-gray-400 hover:text-danger text-sm" title="刪除">🗑️</button>
+          </div>
         </div>
       `).join('');
     }
@@ -628,12 +631,48 @@
       refreshVendorDropdown();
     };
 
+    window.renameVendor = function(index) {
+      const oldName = data.vendors[index];
+      const newName = prompt(`修改廠商名稱：`, oldName);
+      if (!newName || !newName.trim() || newName.trim() === oldName) return;
+      const trimmed = newName.trim();
+      if (data.vendors.includes(trimmed)) return alert('此廠商名稱已存在');
+      // 更新所有核銷紀錄中的廠商名稱
+      let count = 0;
+      data.projects.forEach(p => p.categories.forEach(c => c.expenses.forEach(e => {
+        if (e.vendor === oldName) { e.vendor = trimmed; count++; }
+      })));
+      data.vendors[index] = trimmed;
+      data.vendors.sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      save();
+      renderVendorList();
+      refreshVendorDropdown();
+      if (currentProjectId) renderDetail();
+      alert(`已更新廠商名稱，同步修改了 ${count} 筆核銷紀錄`);
+    };
+
     window.deleteVendor = function(index) {
-      if (!confirm(`確定刪除廠商「${data.vendors[index]}」？`)) return;
+      const name = data.vendors[index];
+      // 檢查有多少筆紀錄在用
+      let count = 0;
+      data.projects.forEach(p => p.categories.forEach(c => c.expenses.forEach(e => {
+        if (e.vendor === name) count++;
+      })));
+      const msg = count > 0
+        ? `廠商「${name}」目前有 ${count} 筆核銷紀錄在使用。\n刪除後這些紀錄的廠商欄位會變成空白。\n確定刪除？`
+        : `確定刪除廠商「${name}」？`;
+      if (!confirm(msg)) return;
+      // 清除紀錄中的廠商
+      if (count > 0) {
+        data.projects.forEach(p => p.categories.forEach(c => c.expenses.forEach(e => {
+          if (e.vendor === name) e.vendor = '';
+        })));
+      }
       data.vendors.splice(index, 1);
       save();
       renderVendorList();
       refreshVendorDropdown();
+      if (currentProjectId) renderDetail();
     };
 
     window.quickAddVendor = function() {
