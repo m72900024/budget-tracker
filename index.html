@@ -65,6 +65,11 @@
         </div>
       </div>
 
+      <!-- 搜尋 -->
+      <div class="mb-4">
+        <input type="text" id="dashboard-search" placeholder="🔍 搜尋計畫名稱..." class="w-full md:w-80 p-3 border border-gray-300 rounded-lg" oninput="renderDashboard()">
+      </div>
+
       <!-- 計畫卡片列表 -->
       <div id="project-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
 
@@ -121,7 +126,7 @@
       <div class="space-y-3">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">計畫名稱</label>
-          <input type="text" id="inp-project-name" placeholder="例：數位學習計畫" class="w-full p-3 border border-gray-300 rounded-lg">
+          <input type="text" id="inp-project-name" placeholder="例：數位學習計畫" class="w-full p-3 border border-gray-300 rounded-lg" onkeydown="if(event.key==='Enter')saveProject()">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">說明（選填）</label>
@@ -146,7 +151,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">預算金額</label>
-          <input type="number" id="inp-cat-budget" placeholder="50000" class="w-full p-3 border border-gray-300 rounded-lg">
+          <input type="number" id="inp-cat-budget" placeholder="50000" class="w-full p-3 border border-gray-300 rounded-lg" onkeydown="if(event.key==='Enter')saveCategory()">
         </div>
       </div>
       <div class="flex gap-2 mt-5">
@@ -192,6 +197,7 @@
             <option value="pending">⏳ 待核銷</option>
             <option value="submitted">📝 已送件</option>
             <option value="approved">✅ 已核銷</option>
+            <option value="rejected">❌ 退件</option>
           </select>
         </div>
         <div>
@@ -244,7 +250,8 @@
     const statusMap = {
       pending: { label: '⏳ 待核銷', color: 'bg-gray-100 text-gray-600' },
       submitted: { label: '📝 已送件', color: 'bg-blue-100 text-blue-700' },
-      approved: { label: '✅ 已核銷', color: 'bg-green-100 text-green-700' }
+      approved: { label: '✅ 已核銷', color: 'bg-green-100 text-green-700' },
+      rejected: { label: '❌ 退件', color: 'bg-red-100 text-red-700' }
     };
 
     // ===== 計算 =====
@@ -284,15 +291,26 @@
       const container = document.getElementById('project-cards');
       container.innerHTML = '';
 
-      if (data.projects.length === 0) {
-        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400"><p class="text-5xl mb-4">📋</p><p class="text-lg">尚無計畫，點擊下方按鈕新增</p></div>';
+      const searchEl = document.getElementById('dashboard-search');
+      const filter = searchEl ? searchEl.value.toLowerCase() : '';
+      const filtered = data.projects.filter(p => !filter || p.name.toLowerCase().includes(filter) || (p.desc || '').toLowerCase().includes(filter));
+
+      if (filtered.length === 0) {
+        container.innerHTML = data.projects.length === 0
+          ? '<div class="col-span-full text-center py-12 text-gray-400"><p class="text-5xl mb-4">📋</p><p class="text-lg">尚無計畫，點擊下方按鈕新增</p></div>'
+          : '<div class="col-span-full text-center py-8 text-gray-400"><p class="text-lg">找不到符合的計畫</p></div>';
         return;
       }
 
-      data.projects.forEach(proj => {
+      filtered.forEach(proj => {
         const c = calcProject(proj);
         const catCount = proj.categories.length;
         const expCount = proj.categories.reduce((s, cat) => s + cat.expenses.length, 0);
+        let approvedAmt = 0, pendingAmt = 0;
+        proj.categories.forEach(cat => cat.expenses.forEach(e => {
+          if (e.status === 'approved') approvedAmt += (e.amount || 0);
+          else pendingAmt += (e.amount || 0);
+        }));
         const progressColor = c.percent > 90 ? 'bg-danger' : c.percent > 70 ? 'bg-warning' : 'bg-primary';
 
         const card = document.createElement('div');
@@ -315,8 +333,8 @@
             <div><p class="text-gray-400">剩餘</p><p class="font-bold ${c.remain < 0 ? 'text-danger' : 'text-secondary'}">$${fmt(c.remain)}</p></div>
           </div>
           <div class="mt-3 pt-3 border-t flex justify-between text-xs text-gray-400">
-            <span>${catCount} 個類別</span>
-            <span>${expCount} 筆核銷</span>
+            <span>${catCount} 個類別 · ${expCount} 筆</span>
+            <span>✅$${fmt(approvedAmt)} · ⏳$${fmt(pendingAmt)}</span>
           </div>
         `;
         container.appendChild(card);
@@ -379,7 +397,7 @@
             </div>
             <div class="flex justify-between text-xs text-gray-400 mb-1">
               <span>$${fmt(cc.used)} / $${fmt(cc.budget)}</span>
-              <span>${pct}%</span>
+              <span>${pct}% ${cc.remain < 0 ? '⚠️ 超支！' : ''}</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
               <div class="progress-bar ${progressColor} rounded-full h-2" style="width:${pct}%"></div>
@@ -388,7 +406,7 @@
             <!-- 核銷明細 -->
             <div class="space-y-2">
               ${cat.expenses.length === 0 ? '<p class="text-sm text-gray-400 text-center py-2">尚無核銷紀錄</p>' :
-                cat.expenses.map(exp => {
+                [...cat.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(exp => {
                   const st = statusMap[exp.status] || statusMap.pending;
                   return `
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
@@ -403,7 +421,7 @@
                       </div>
                       <div class="flex items-center gap-3">
                         <span class="font-bold text-gray-800">$${fmt(exp.amount || 0)}</span>
-                        <div class="hidden group-hover:flex gap-1">
+                        <div class="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-primary text-xs">✏️</button>
                           <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
                         </div>
@@ -721,6 +739,11 @@
       };
       reader.readAsText(file);
       e.target.value = '';
+    });
+
+    // ===== 鍵盤快捷鍵 =====
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAllModals();
     });
 
     // ===== 啟動 =====
