@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: { extend: {
         colors: { primary: '#4f46e5', secondary: '#10b981', warning: '#f59e0b', danger: '#ef4444' },
         fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'] }
@@ -19,181 +20,200 @@
     .modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:50;opacity:0;pointer-events:none;transition:opacity .3s }
     .modal-backdrop.open { opacity:1;pointer-events:auto }
     .modal-backdrop.open .modal-box { transform:scale(1);opacity:1 }
-    .modal-box { transform:scale(.95);opacity:0;transition:all .3s }
+    .modal-box { transform:scale(.95);opacity:0;transition:all .3s;max-height:90vh;overflow-y:auto }
     .progress-bar { transition: width 0.5s ease; }
+    .toast { animation: slideIn .3s ease, fadeOut .3s ease 2.7s forwards; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity:0 } to { transform: translateX(0); opacity:1 } }
+    @keyframes fadeOut { to { opacity:0; transform: translateX(50%) } }
+    .cat-dragging { opacity: 0.5; }
+    .cat-drag-over { border-color: #4f46e5 !important; background: #eef2ff !important; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+      .card-shadow { box-shadow: none !important; border: 1px solid #ddd !important; }
+    }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[999] space-y-2"></div>
 
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
-
     <!-- Header -->
-    <header class="mb-8">
+    <header class="mb-8 no-print">
       <div class="flex justify-between items-center flex-wrap gap-3">
-        <h1 class="text-3xl font-extrabold text-primary flex items-center gap-2">
-          💰 計畫經費追蹤系統
-        </h1>
-        <div class="flex gap-2">
-          <button onclick="showVendorModal()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商管理</button>
-          <button onclick="exportAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">📤 匯出</button>
-          <button onclick="importAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">📥 匯入</button>
+        <h1 class="text-3xl font-extrabold text-primary dark:text-indigo-400 flex items-center gap-2">💰 計畫經費追蹤系統</h1>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="toggleDarkMode()" id="dark-toggle" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-3 rounded-lg text-sm transition">🌙</button>
+          <button onclick="showVendorModal()" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商</button>
+          <button onclick="showTemplateModal()" class="bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-700 dark:text-blue-300 font-bold py-2 px-4 rounded-lg text-sm transition">📋 模板</button>
+          <button onclick="printReport()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">🖨️ 列印</button>
+          <button onclick="exportCSV()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📊 CSV</button>
+          <button onclick="exportAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📤 匯出</button>
+          <button onclick="importAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📥 匯入</button>
           <input type="file" id="import-file" accept=".json" class="hidden">
         </div>
       </div>
-      <p class="text-gray-500 text-sm mt-1">管理各項計畫預算與核銷進度</p>
+      <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">管理各項計畫預算與核銷進度</p>
     </header>
 
-    <!-- 面板：計畫總覽 -->
+    <!-- ===== 面板 ===== -->
     <div id="dashboard-view">
-      <!-- 統計卡片 -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white p-4 rounded-xl card-shadow text-center">
-          <p class="text-sm text-gray-500">計畫數</p>
-          <p id="stat-projects" class="text-3xl font-extrabold text-primary">0</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400">計畫數</p>
+          <p id="stat-projects" class="text-3xl font-extrabold text-primary dark:text-indigo-400">0</p>
         </div>
-        <div class="bg-white p-4 rounded-xl card-shadow text-center">
-          <p class="text-sm text-gray-500">總預算</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400">總預算</p>
           <p id="stat-budget" class="text-3xl font-extrabold text-secondary">0</p>
         </div>
-        <div class="bg-white p-4 rounded-xl card-shadow text-center">
-          <p class="text-sm text-gray-500">已核銷</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400">已核銷</p>
           <p id="stat-used" class="text-3xl font-extrabold text-warning">0</p>
         </div>
-        <div class="bg-white p-4 rounded-xl card-shadow text-center">
-          <p class="text-sm text-gray-500">剩餘</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl card-shadow text-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400">剩餘</p>
           <p id="stat-remain" class="text-3xl font-extrabold text-danger">0</p>
         </div>
       </div>
 
-      <!-- 搜尋 -->
-      <div class="mb-4">
-        <input type="text" id="dashboard-search" placeholder="🔍 搜尋計畫名稱..." class="w-full md:w-80 p-3 border border-gray-300 rounded-lg" oninput="renderDashboard()">
+      <!-- 圓餅圖 + 搜尋 -->
+      <div class="flex flex-col md:flex-row gap-4 mb-6 no-print">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl card-shadow flex-shrink-0">
+          <canvas id="pie-chart" width="180" height="180"></canvas>
+        </div>
+        <div class="flex-1 space-y-3">
+          <input type="text" id="dashboard-search" placeholder="🔍 搜尋計畫名稱..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg" oninput="renderDashboard()">
+          <!-- 年度篩選 -->
+          <div class="flex gap-2 flex-wrap" id="year-tags"></div>
+        </div>
       </div>
 
-      <!-- 計畫卡片列表 -->
       <div id="project-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
 
-      <!-- 新增計畫按鈕 -->
-      <div class="mt-6 text-center">
-        <button onclick="showAddProjectModal()" class="bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-lg">
-          ＋ 新增計畫
-        </button>
+      <div class="mt-6 text-center no-print">
+        <button onclick="showAddProjectModal()" class="bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-lg">＋ 新增計畫</button>
       </div>
     </div>
 
-    <!-- 計畫詳情頁 -->
+    <!-- ===== 計畫詳情 ===== -->
     <div id="detail-view" class="hidden">
-      <button onclick="backToDashboard()" class="mb-4 text-primary hover:underline font-bold flex items-center gap-1">← 回到總覽</button>
+      <button onclick="backToDashboard()" class="mb-4 text-primary dark:text-indigo-400 hover:underline font-bold flex items-center gap-1 no-print">← 回到總覽</button>
 
-      <div class="bg-white p-6 rounded-xl card-shadow mb-6">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-xl card-shadow mb-6">
         <div class="flex justify-between items-start flex-wrap gap-3">
           <div>
-            <h2 id="detail-title" class="text-2xl font-extrabold text-gray-800"></h2>
-            <p id="detail-desc" class="text-gray-500 mt-1"></p>
+            <h2 id="detail-title" class="text-2xl font-extrabold text-gray-800 dark:text-white"></h2>
+            <p id="detail-desc" class="text-gray-500 dark:text-gray-400 mt-1"></p>
+            <p id="detail-deadline" class="text-sm mt-1"></p>
           </div>
-          <div class="flex gap-2">
-            <button onclick="editCurrentProject()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition">✏️ 編輯計畫</button>
-            <button onclick="deleteCurrentProject()" class="bg-red-100 hover:bg-red-200 text-danger font-bold py-2 px-4 rounded-lg text-sm transition">🗑️ 刪除</button>
+          <div class="flex gap-2 no-print">
+            <button onclick="editCurrentProject()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">✏️ 編輯</button>
+            <button onclick="deleteCurrentProject()" class="bg-red-100 dark:bg-red-900 hover:bg-red-200 text-danger font-bold py-2 px-4 rounded-lg text-sm transition">🗑️ 刪除</button>
           </div>
         </div>
-        <!-- 計畫總進度 -->
         <div class="mt-4">
           <div class="flex justify-between text-sm mb-1">
-            <span id="detail-used-label" class="text-gray-600"></span>
-            <span id="detail-remain-label" class="text-gray-600"></span>
+            <span id="detail-used-label" class="text-gray-600 dark:text-gray-300"></span>
+            <span id="detail-remain-label" class="text-gray-600 dark:text-gray-300"></span>
           </div>
-          <div class="w-full bg-gray-200 rounded-full h-4">
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
             <div id="detail-progress" class="progress-bar bg-primary rounded-full h-4"></div>
           </div>
         </div>
       </div>
 
-      <!-- 經費類別列表 -->
       <div id="categories-list" class="space-y-4"></div>
 
-      <div class="mt-4">
-        <button onclick="showAddCategoryModal()" class="bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg transition">
-          ＋ 新增經費類別
-        </button>
+      <div class="mt-4 no-print">
+        <button onclick="showAddCategoryModal()" class="bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg transition">＋ 新增經費類別</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: 新增/編輯計畫 -->
+  <!-- Modal: 計畫 -->
   <div id="modal-project" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
-    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
-      <h3 id="modal-project-title" class="text-xl font-bold mb-4">新增計畫</h3>
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 id="modal-project-title" class="text-xl font-bold dark:text-white mb-4">新增計畫</h3>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">計畫名稱</label>
-          <input type="text" id="inp-project-name" placeholder="例：數位學習計畫" class="w-full p-3 border border-gray-300 rounded-lg" onkeydown="if(event.key==='Enter')saveProject()">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">計畫名稱</label>
+          <input type="text" id="inp-project-name" placeholder="例：數位學習計畫" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" onkeydown="if(event.key==='Enter')saveProject()">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">說明（選填）</label>
-          <input type="text" id="inp-project-desc" placeholder="例：112年度教育部補助" class="w-full p-3 border border-gray-300 rounded-lg">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">說明（選填）</label>
+          <input type="text" id="inp-project-desc" placeholder="例：112年度教育部補助" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年度/學期（選填）</label>
+          <input type="text" id="inp-project-year" placeholder="例：114學年" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">結案期限（選填）</label>
+          <input type="date" id="inp-project-deadline" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
       </div>
       <div class="flex gap-2 mt-5">
         <button onclick="saveProject()" class="flex-1 bg-primary hover:bg-indigo-600 text-white font-bold py-3 rounded-lg transition">儲存</button>
-        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">取消</button>
+        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-lg transition">取消</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: 新增/編輯經費類別 -->
+  <!-- Modal: 經費類別 -->
   <div id="modal-category" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
-    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
-      <h3 id="modal-category-title" class="text-xl font-bold mb-4">新增經費類別</h3>
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 id="modal-category-title" class="text-xl font-bold dark:text-white mb-4">新增經費類別</h3>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">類別名稱</label>
-          <input type="text" id="inp-cat-name" placeholder="例：人事費" class="w-full p-3 border border-gray-300 rounded-lg">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">類別名稱</label>
+          <input type="text" id="inp-cat-name" placeholder="例：人事費" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">預算金額</label>
-          <input type="number" id="inp-cat-budget" placeholder="50000" class="w-full p-3 border border-gray-300 rounded-lg" onkeydown="if(event.key==='Enter')saveCategory()">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">預算金額</label>
+          <input type="number" step="0.1" id="inp-cat-budget" placeholder="50000" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" onkeydown="if(event.key==='Enter')saveCategory()">
         </div>
       </div>
       <div class="flex gap-2 mt-5">
         <button onclick="saveCategory()" class="flex-1 bg-secondary hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition">儲存</button>
-        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">取消</button>
+        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-lg transition">取消</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: 新增/編輯核銷項目 -->
+  <!-- Modal: 核銷項目 -->
   <div id="modal-expense" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
-    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
-      <h3 id="modal-expense-title" class="text-xl font-bold mb-4">新增核銷項目</h3>
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 id="modal-expense-title" class="text-xl font-bold dark:text-white mb-4">新增核銷項目</h3>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">項目名稱</label>
-          <input type="text" id="inp-exp-name" placeholder="例：講師鐘點費" class="w-full p-3 border border-gray-300 rounded-lg">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">項目名稱</label>
+          <input type="text" id="inp-exp-name" placeholder="例：講師鐘點費" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">金額</label>
-          <input type="number" id="inp-exp-amount" placeholder="3000" class="w-full p-3 border border-gray-300 rounded-lg">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金額</label>
+          <input type="number" step="0.1" id="inp-exp-amount" placeholder="3000" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">日期</label>
-          <input type="date" id="inp-exp-date" class="w-full p-3 border border-gray-300 rounded-lg">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">廠商</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">廠商</label>
           <div class="flex gap-2">
-            <select id="inp-exp-vendor" class="flex-1 p-3 border border-gray-300 rounded-lg bg-white">
-              <option value="">-- 不指定 --</option>
-            </select>
-            <button onclick="quickAddVendor()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-3 rounded-lg text-sm transition" title="快速新增廠商">＋</button>
+            <select id="inp-exp-vendor" class="flex-1 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"><option value="">-- 不指定 --</option></select>
+            <button onclick="quickAddVendor()" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold px-3 rounded-lg text-sm transition">＋</button>
           </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">收據/單據編號（選填）</label>
-          <input type="text" id="inp-exp-receipt" placeholder="例：A-001" class="w-full p-3 border border-gray-300 rounded-lg">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">日期</label>
+          <input type="date" id="inp-exp-date" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">核銷狀態</label>
-          <select id="inp-exp-status" class="w-full p-3 border border-gray-300 rounded-lg bg-white">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">收據編號（選填）</label>
+          <input type="text" id="inp-exp-receipt" placeholder="例：A-001" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">核銷狀態</label>
+          <select id="inp-exp-status" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
             <option value="pending">⏳ 待核銷</option>
             <option value="submitted">📝 已送件</option>
             <option value="approved">✅ 已核銷</option>
@@ -201,553 +221,601 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">備註（選填）</label>
-          <input type="text" id="inp-exp-note" placeholder="" class="w-full p-3 border border-gray-300 rounded-lg">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">備註（選填）</label>
+          <input type="text" id="inp-exp-note" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
       </div>
       <div class="flex gap-2 mt-5">
         <button onclick="saveExpense()" class="flex-1 bg-warning hover:bg-amber-600 text-white font-bold py-3 rounded-lg transition">儲存</button>
-        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">取消</button>
+        <button onclick="closeAllModals()" class="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-lg transition">取消</button>
       </div>
     </div>
   </div>
 
   <!-- Modal: 廠商管理 -->
   <div id="modal-vendor" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
-    <div class="modal-box bg-white rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
-      <h3 class="text-xl font-bold mb-4">🏪 廠商管理</h3>
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 class="text-xl font-bold dark:text-white mb-4">🏪 廠商管理</h3>
       <div class="flex gap-2 mb-4">
-        <input type="text" id="inp-vendor-name" placeholder="廠商名稱" class="flex-1 p-3 border border-gray-300 rounded-lg" onkeydown="if(event.key==='Enter')addVendor()">
+        <input type="text" id="inp-vendor-name" placeholder="廠商名稱" class="flex-1 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" onkeydown="if(event.key==='Enter')addVendor()">
         <button onclick="addVendor()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 rounded-lg transition">新增</button>
       </div>
       <div id="vendor-list" class="space-y-2 max-h-[50vh] overflow-y-auto"></div>
       <div class="mt-4">
-        <button onclick="closeAllModals()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">關閉</button>
+        <button onclick="closeAllModals()" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-lg transition">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 計畫模板 -->
+  <div id="modal-template" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 class="text-xl font-bold dark:text-white mb-4">📋 從模板建立計畫</h3>
+      <div id="template-list" class="space-y-3"></div>
+      <div class="mt-4">
+        <button onclick="closeAllModals()" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-lg transition">關閉</button>
       </div>
     </div>
   </div>
 
   <script>
-    // ===== 資料模型 =====
-    // 存在 localStorage，結構：
-    // { projects: [ { id, name, desc, categories: [ { id, name, budget, expenses: [ { id, name, amount, date, receipt, status, note } ] } ] } ] }
-
     const STORAGE_KEY = 'budget-tracker-data';
     let data = { projects: [], vendors: [] };
     let currentProjectId = null;
     let editingProjectId = null;
     let editingCategoryId = null;
-    let editingExpenseInfo = null; // { catId, expId }
+    let editingExpenseInfo = null;
+    let collapsedCats = new Set();
+    let yearFilter = '';
 
-    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
     function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-    function load() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) { try { data = JSON.parse(raw); if (!data.vendors) data.vendors = []; } catch(e) {} }
-    }
-    function fmt(n) { return n.toLocaleString('zh-TW'); }
+    function load() { const r = localStorage.getItem(STORAGE_KEY); if(r) try { data=JSON.parse(r); if(!data.vendors)data.vendors=[]; data.projects.forEach(p=>{if(!p.year)p.year='';if(!p.deadline)p.deadline=''}); } catch(e){} }
+    function fmt(n) { return Number(n).toLocaleString('zh-TW', {minimumFractionDigits:0, maximumFractionDigits:1}); }
 
     const statusMap = {
-      pending: { label: '⏳ 待核銷', color: 'bg-gray-100 text-gray-600' },
-      submitted: { label: '📝 已送件', color: 'bg-blue-100 text-blue-700' },
-      approved: { label: '✅ 已核銷', color: 'bg-green-100 text-green-700' },
-      rejected: { label: '❌ 退件', color: 'bg-red-100 text-red-700' }
+      pending: { label:'⏳ 待核銷', color:'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+      submitted: { label:'📝 已送件', color:'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
+      approved: { label:'✅ 已核銷', color:'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
+      rejected: { label:'❌ 退件', color:'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' }
     };
 
+    // ===== Toast =====
+    function toast(msg, type='success') {
+      const c = document.getElementById('toast-container');
+      const colors = { success:'bg-green-500', error:'bg-red-500', warning:'bg-yellow-500', info:'bg-blue-500' };
+      const div = document.createElement('div');
+      div.className = `toast ${colors[type]||colors.info} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-bold`;
+      div.textContent = msg;
+      c.appendChild(div);
+      setTimeout(() => div.remove(), 3000);
+    }
+
     // ===== 計算 =====
-    function calcCategory(cat) {
-      const used = cat.expenses.reduce((s, e) => s + (e.amount || 0), 0);
-      return { budget: cat.budget || 0, used, remain: (cat.budget || 0) - used };
-    }
+    function calcCat(cat) { const u=cat.expenses.reduce((s,e)=>s+(e.amount||0),0); return {budget:cat.budget||0,used:u,remain:(cat.budget||0)-u}; }
+    function calcProj(proj) { let b=0,u=0; proj.categories.forEach(c=>{const r=calcCat(c);b+=r.budget;u+=r.used}); return {budget:b,used:u,remain:b-u,percent:b>0?Math.round(u/b*100):0}; }
+    function calcAll() { let b=0,u=0; data.projects.forEach(p=>{const c=calcProj(p);b+=c.budget;u+=c.used}); return {budget:b,used:u,remain:b-u}; }
 
-    function calcProject(proj) {
-      let budget = 0, used = 0;
-      proj.categories.forEach(cat => {
-        const c = calcCategory(cat);
-        budget += c.budget;
-        used += c.used;
-      });
-      return { budget, used, remain: budget - used, percent: budget > 0 ? Math.round(used / budget * 100) : 0 };
-    }
+    // ===== 深色模式 =====
+    window.toggleDarkMode = function() {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('dark-mode', document.documentElement.classList.contains('dark'));
+      document.getElementById('dark-toggle').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+    };
+    if(localStorage.getItem('dark-mode')==='true') { document.documentElement.classList.add('dark'); }
 
-    function calcAll() {
-      let budget = 0, used = 0;
+    // ===== 圓餅圖 =====
+    function drawPie() {
+      const canvas = document.getElementById('pie-chart');
+      if(!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const size = 180, cx = size/2, cy = size/2, r = 70;
+      ctx.clearRect(0,0,size,size);
+      
+      const slices = [];
       data.projects.forEach(p => {
-        const c = calcProject(p);
-        budget += c.budget;
-        used += c.used;
+        const c = calcProj(p);
+        if(c.budget > 0) slices.push({ name: p.name, value: c.budget, used: c.used });
       });
-      return { budget, used, remain: budget - used };
+      
+      if(slices.length === 0) {
+        ctx.fillStyle = '#e5e7eb';
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#9ca3af'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('尚無資料', cx, cy+5);
+        return;
+      }
+
+      const total = slices.reduce((s,d)=>s+d.value, 0);
+      const colors = ['#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
+      let angle = -Math.PI/2;
+
+      slices.forEach((s,i) => {
+        const sweep = (s.value/total) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+sweep); ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+        // Label
+        if(sweep > 0.3) {
+          const mid = angle + sweep/2;
+          const lx = cx + Math.cos(mid) * (r * 0.65);
+          const ly = cy + Math.sin(mid) * (r * 0.65);
+          ctx.fillStyle = 'white'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(Math.round(s.value/total*100)+'%', lx, ly+4);
+        }
+        angle += sweep;
+      });
+    }
+
+    // ===== 年度篩選 =====
+    function renderYearTags() {
+      const years = [...new Set(data.projects.map(p=>p.year).filter(y=>y))];
+      const container = document.getElementById('year-tags');
+      if(!container) return;
+      container.innerHTML = '';
+      if(years.length === 0) return;
+      
+      const allBtn = document.createElement('button');
+      allBtn.className = `px-3 py-1 rounded-full text-xs font-bold transition ${!yearFilter ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300'}`;
+      allBtn.textContent = '全部';
+      allBtn.onclick = () => { yearFilter=''; renderDashboard(); };
+      container.appendChild(allBtn);
+
+      years.sort().forEach(y => {
+        const btn = document.createElement('button');
+        btn.className = `px-3 py-1 rounded-full text-xs font-bold transition ${yearFilter===y ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300'}`;
+        btn.textContent = y;
+        btn.onclick = () => { yearFilter=y; renderDashboard(); };
+        container.appendChild(btn);
+      });
     }
 
     // ===== 面板渲染 =====
     function renderDashboard() {
       const all = calcAll();
       document.getElementById('stat-projects').textContent = data.projects.length;
-      document.getElementById('stat-budget').textContent = '$' + fmt(all.budget);
-      document.getElementById('stat-used').textContent = '$' + fmt(all.used);
-      document.getElementById('stat-remain').textContent = '$' + fmt(all.remain);
+      document.getElementById('stat-budget').textContent = '$'+fmt(all.budget);
+      document.getElementById('stat-used').textContent = '$'+fmt(all.used);
+      document.getElementById('stat-remain').textContent = '$'+fmt(all.remain);
+
+      renderYearTags();
+      drawPie();
 
       const container = document.getElementById('project-cards');
       container.innerHTML = '';
+      const search = (document.getElementById('dashboard-search')?.value||'').toLowerCase();
+      const filtered = data.projects.filter(p => {
+        if(search && !p.name.toLowerCase().includes(search) && !(p.desc||'').toLowerCase().includes(search)) return false;
+        if(yearFilter && p.year !== yearFilter) return false;
+        return true;
+      });
 
-      const searchEl = document.getElementById('dashboard-search');
-      const filter = searchEl ? searchEl.value.toLowerCase() : '';
-      const filtered = data.projects.filter(p => !filter || p.name.toLowerCase().includes(filter) || (p.desc || '').toLowerCase().includes(filter));
-
-      if (filtered.length === 0) {
-        container.innerHTML = data.projects.length === 0
+      if(filtered.length===0) {
+        container.innerHTML = data.projects.length===0
           ? '<div class="col-span-full text-center py-12 text-gray-400"><p class="text-5xl mb-4">📋</p><p class="text-lg">尚無計畫，點擊下方按鈕新增</p></div>'
           : '<div class="col-span-full text-center py-8 text-gray-400"><p class="text-lg">找不到符合的計畫</p></div>';
         return;
       }
 
       filtered.forEach(proj => {
-        const c = calcProject(proj);
+        const c = calcProj(proj);
         const catCount = proj.categories.length;
-        const expCount = proj.categories.reduce((s, cat) => s + cat.expenses.length, 0);
-        let approvedAmt = 0, pendingAmt = 0;
-        proj.categories.forEach(cat => cat.expenses.forEach(e => {
-          if (e.status === 'approved') approvedAmt += (e.amount || 0);
-          else pendingAmt += (e.amount || 0);
-        }));
-        const progressColor = c.percent > 90 ? 'bg-danger' : c.percent > 70 ? 'bg-warning' : 'bg-primary';
+        const expCount = proj.categories.reduce((s,cat)=>s+cat.expenses.length,0);
+        let approvedAmt=0, pendingAmt=0;
+        proj.categories.forEach(cat=>cat.expenses.forEach(e=>{if(e.status==='approved')approvedAmt+=(e.amount||0);else pendingAmt+=(e.amount||0);}));
+        const progressColor = c.percent>90?'bg-danger':c.percent>70?'bg-warning':'bg-primary';
+
+        // 期限計算
+        let deadlineHtml = '';
+        if(proj.deadline) {
+          const days = Math.ceil((new Date(proj.deadline)-new Date())/(1000*60*60*24));
+          if(days<0) deadlineHtml = `<span class="text-xs text-danger font-bold">⚠️ 已逾期 ${-days} 天</span>`;
+          else if(days<=30) deadlineHtml = `<span class="text-xs text-warning font-bold">⏰ 剩 ${days} 天結案</span>`;
+          else deadlineHtml = `<span class="text-xs text-gray-400">📅 ${proj.deadline}</span>`;
+        }
 
         const card = document.createElement('div');
-        card.className = 'bg-white p-6 rounded-xl card-shadow hover:shadow-lg transition cursor-pointer transform hover:scale-[1.02]';
+        card.className = 'bg-white dark:bg-gray-800 p-6 rounded-xl card-shadow hover:shadow-lg transition cursor-pointer transform hover:scale-[1.02]';
         card.onclick = () => openProject(proj.id);
         card.innerHTML = `
-          <div class="flex justify-between items-start mb-3">
-            <h3 class="text-xl font-bold text-gray-800">${proj.name}</h3>
-            <span class="text-xs px-2 py-1 rounded-full ${c.percent > 90 ? 'bg-red-100 text-danger' : c.percent > 70 ? 'bg-yellow-100 text-warning' : 'bg-green-100 text-secondary'} font-bold">
-              ${c.percent}%
-            </span>
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <h3 class="text-xl font-bold text-gray-800 dark:text-white">${proj.name}</h3>
+              ${proj.year?`<span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">${proj.year}</span>`:''}
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full ${c.percent>90?'bg-red-100 text-danger':c.percent>70?'bg-yellow-100 text-warning':'bg-green-100 text-secondary'} font-bold">${c.percent}%</span>
           </div>
-          ${proj.desc ? `<p class="text-sm text-gray-500 mb-3">${proj.desc}</p>` : ''}
-          <div class="w-full bg-gray-200 rounded-full h-3 mb-3">
-            <div class="progress-bar ${progressColor} rounded-full h-3" style="width:${c.percent}%"></div>
+          ${proj.desc?`<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">${proj.desc}</p>`:''}
+          ${deadlineHtml?`<div class="mb-2">${deadlineHtml}</div>`:''}
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3">
+            <div class="progress-bar ${progressColor} rounded-full h-3" style="width:${Math.min(c.percent,100)}%"></div>
           </div>
           <div class="grid grid-cols-3 gap-2 text-center text-sm">
-            <div><p class="text-gray-400">預算</p><p class="font-bold text-gray-800">$${fmt(c.budget)}</p></div>
+            <div><p class="text-gray-400">預算</p><p class="font-bold text-gray-800 dark:text-white">$${fmt(c.budget)}</p></div>
             <div><p class="text-gray-400">已用</p><p class="font-bold text-warning">$${fmt(c.used)}</p></div>
-            <div><p class="text-gray-400">剩餘</p><p class="font-bold ${c.remain < 0 ? 'text-danger' : 'text-secondary'}">$${fmt(c.remain)}</p></div>
+            <div><p class="text-gray-400">剩餘</p><p class="font-bold ${c.remain<0?'text-danger':'text-secondary'}">$${fmt(c.remain)}</p></div>
           </div>
-          <div class="mt-3 pt-3 border-t flex justify-between text-xs text-gray-400">
+          <div class="mt-3 pt-3 border-t dark:border-gray-700 flex justify-between text-xs text-gray-400">
             <span>${catCount} 個類別 · ${expCount} 筆</span>
             <span>✅$${fmt(approvedAmt)} · ⏳$${fmt(pendingAmt)}</span>
-          </div>
-        `;
+          </div>`;
         container.appendChild(card);
       });
     }
 
     // ===== 計畫詳情 =====
-    function openProject(id) {
-      currentProjectId = id;
-      document.getElementById('dashboard-view').classList.add('hidden');
-      document.getElementById('detail-view').classList.remove('hidden');
-      renderDetail();
-    }
-
-    function backToDashboard() {
-      currentProjectId = null;
-      document.getElementById('detail-view').classList.add('hidden');
-      document.getElementById('dashboard-view').classList.remove('hidden');
-      renderDashboard();
-    }
-
-    function getProject(id) { return data.projects.find(p => p.id === (id || currentProjectId)); }
+    function openProject(id) { currentProjectId=id; document.getElementById('dashboard-view').classList.add('hidden'); document.getElementById('detail-view').classList.remove('hidden'); renderDetail(); }
+    function backToDashboard() { currentProjectId=null; document.getElementById('detail-view').classList.add('hidden'); document.getElementById('dashboard-view').classList.remove('hidden'); renderDashboard(); }
+    function getProject(id) { return data.projects.find(p=>p.id===(id||currentProjectId)); }
 
     function renderDetail() {
-      const proj = getProject();
-      if (!proj) return backToDashboard();
-      const c = calcProject(proj);
+      const proj=getProject(); if(!proj) return backToDashboard();
+      const c=calcProj(proj);
+      document.getElementById('detail-title').textContent=proj.name;
+      document.getElementById('detail-desc').textContent=proj.desc||'';
+      
+      // 期限
+      const dlEl = document.getElementById('detail-deadline');
+      if(proj.deadline) {
+        const days=Math.ceil((new Date(proj.deadline)-new Date())/(1000*60*60*24));
+        if(days<0) dlEl.innerHTML=`<span class="text-danger font-bold">⚠️ 已逾期 ${-days} 天（期限：${proj.deadline}）</span>`;
+        else if(days<=30) dlEl.innerHTML=`<span class="text-warning font-bold">⏰ 剩 ${days} 天結案（期限：${proj.deadline}）</span>`;
+        else dlEl.innerHTML=`<span class="text-gray-500">📅 結案期限：${proj.deadline}（剩 ${days} 天）</span>`;
+      } else dlEl.textContent='';
 
-      document.getElementById('detail-title').textContent = proj.name;
-      document.getElementById('detail-desc').textContent = proj.desc || '';
-      document.getElementById('detail-used-label').textContent = `已用 $${fmt(c.used)} / $${fmt(c.budget)}`;
-      document.getElementById('detail-remain-label').textContent = `剩餘 $${fmt(c.remain)} (${c.percent}%)`;
-      document.getElementById('detail-progress').style.width = c.percent + '%';
-      document.getElementById('detail-progress').className = `progress-bar rounded-full h-4 ${c.percent > 90 ? 'bg-danger' : c.percent > 70 ? 'bg-warning' : 'bg-primary'}`;
+      document.getElementById('detail-used-label').textContent=`已用 $${fmt(c.used)} / $${fmt(c.budget)}`;
+      document.getElementById('detail-remain-label').textContent=`剩餘 $${fmt(c.remain)} (${c.percent}%)`;
+      document.getElementById('detail-progress').style.width=Math.min(c.percent,100)+'%';
+      document.getElementById('detail-progress').className=`progress-bar rounded-full h-4 ${c.percent>90?'bg-danger':c.percent>70?'bg-warning':'bg-primary'}`;
 
-      const list = document.getElementById('categories-list');
-      list.innerHTML = '';
+      const list=document.getElementById('categories-list');
+      list.innerHTML='';
+      if(proj.categories.length===0) { list.innerHTML='<div class="text-center py-8 text-gray-400"><p class="text-lg">尚無經費類別</p></div>'; return; }
 
-      if (proj.categories.length === 0) {
-        list.innerHTML = '<div class="text-center py-8 text-gray-400"><p class="text-lg">尚無經費類別，點擊下方按鈕新增</p></div>';
-        return;
-      }
+      proj.categories.forEach((cat,catIdx) => {
+        const cc=calcCat(cat);
+        const pct=cc.budget>0?Math.round(cc.used/cc.budget*100):0;
+        const progressColor=pct>90?'bg-danger':pct>70?'bg-warning':'bg-secondary';
+        const isCollapsed = collapsedCats.has(cat.id);
 
-      proj.categories.forEach(cat => {
-        const cc = calcCategory(cat);
-        const pct = cc.budget > 0 ? Math.round(cc.used / cc.budget * 100) : 0;
-        const progressColor = pct > 90 ? 'bg-danger' : pct > 70 ? 'bg-warning' : 'bg-secondary';
+        const div=document.createElement('div');
+        div.className='bg-white dark:bg-gray-800 rounded-xl card-shadow overflow-hidden border-2 border-transparent';
+        div.draggable=true;
+        div.dataset.catId=cat.id;
+        div.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain',cat.id); div.classList.add('cat-dragging'); });
+        div.addEventListener('dragend', () => div.classList.remove('cat-dragging'));
+        div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('cat-drag-over'); });
+        div.addEventListener('dragleave', () => div.classList.remove('cat-drag-over'));
+        div.addEventListener('drop', e => {
+          e.preventDefault(); div.classList.remove('cat-drag-over');
+          const fromId=e.dataTransfer.getData('text/plain');
+          if(fromId===cat.id) return;
+          const proj=getProject();
+          const fromIdx=proj.categories.findIndex(c=>c.id===fromId);
+          const toIdx=proj.categories.findIndex(c=>c.id===cat.id);
+          if(fromIdx<0||toIdx<0) return;
+          const [moved]=proj.categories.splice(fromIdx,1);
+          proj.categories.splice(toIdx,0,moved);
+          save(); renderDetail();
+          toast('類別順序已更新');
+        });
 
-        const div = document.createElement('div');
-        div.className = 'bg-white rounded-xl card-shadow overflow-hidden';
-        div.innerHTML = `
+        div.innerHTML=`
           <div class="p-5">
-            <div class="flex justify-between items-center mb-2">
-              <h3 class="text-lg font-bold text-gray-800">${cat.name}</h3>
+            <div class="flex justify-between items-center mb-2 cursor-pointer" onclick="toggleCat('${cat.id}')">
+              <div class="flex items-center gap-2">
+                <span class="text-gray-400 cursor-grab no-print" title="拖拉排序">⠿</span>
+                <span class="text-sm transition-transform ${isCollapsed?'':'rotate-90'}">${isCollapsed?'▶':'▼'}</span>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white">${cat.name}</h3>
+              </div>
               <div class="flex gap-2 items-center">
-                <span class="text-sm font-bold ${cc.remain < 0 ? 'text-danger' : 'text-secondary'}">剩餘 $${fmt(cc.remain)}</span>
-                <button onclick="event.stopPropagation();editCategory('${cat.id}')" class="text-gray-400 hover:text-primary text-sm">✏️</button>
-                <button onclick="event.stopPropagation();deleteCategory('${cat.id}')" class="text-gray-400 hover:text-danger text-sm">🗑️</button>
+                <span class="text-sm font-bold ${cc.remain<0?'text-danger':'text-secondary'}">剩餘 $${fmt(cc.remain)} ${cc.remain<0?'⚠️超支！':''}</span>
+                <button onclick="event.stopPropagation();editCategory('${cat.id}')" class="text-gray-400 hover:text-primary text-sm no-print">✏️</button>
+                <button onclick="event.stopPropagation();deleteCategory('${cat.id}')" class="text-gray-400 hover:text-danger text-sm no-print">🗑️</button>
               </div>
             </div>
             <div class="flex justify-between text-xs text-gray-400 mb-1">
               <span>$${fmt(cc.used)} / $${fmt(cc.budget)}</span>
-              <span>${pct}% ${cc.remain < 0 ? '⚠️ 超支！' : ''}</span>
+              <span>${pct}%</span>
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
-              <div class="progress-bar ${progressColor} rounded-full h-2" style="width:${pct}%"></div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
+              <div class="progress-bar ${progressColor} rounded-full h-2" style="width:${Math.min(pct,100)}%"></div>
             </div>
-
-            <!-- 核銷明細 -->
-            <div class="space-y-2">
-              ${cat.expenses.length === 0 ? '<p class="text-sm text-gray-400 text-center py-2">尚無核銷紀錄</p>' :
-                [...cat.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(exp => {
-                  const st = statusMap[exp.status] || statusMap.pending;
-                  return `
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
+            <div class="${isCollapsed?'hidden':''}">
+              <div class="space-y-2">
+                ${cat.expenses.length===0?'<p class="text-sm text-gray-400 text-center py-2">尚無核銷紀錄</p>':
+                  [...cat.expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(exp=>{
+                    const st=statusMap[exp.status]||statusMap.pending;
+                    return `<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-750 rounded-lg group">
                       <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                          <span class="font-medium text-gray-800">${exp.name}</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="font-medium text-gray-800 dark:text-white">${exp.name}</span>
                           <span class="px-2 py-0.5 text-xs rounded-full ${st.color} font-bold">${st.label}</span>
                         </div>
                         <div class="text-xs text-gray-400 mt-1">
-                          ${exp.date || ''} ${exp.vendor ? '· 🏪' + exp.vendor : ''} ${exp.receipt ? '· #' + exp.receipt : ''} ${exp.note ? '· ' + exp.note : ''}
+                          ${exp.date||''} ${exp.vendor?'· 🏪'+exp.vendor:''} ${exp.receipt?'· #'+exp.receipt:''} ${exp.note?'· '+exp.note:''}
                         </div>
                       </div>
-                      <div class="flex items-center gap-3">
-                        <span class="font-bold text-gray-800">$${fmt(exp.amount || 0)}</span>
-                        <div class="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-800 dark:text-white">$${fmt(exp.amount||0)}</span>
+                        <div class="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                          <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-blue-500 text-xs" title="複製">📋</button>
                           <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-primary text-xs">✏️</button>
                           <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
                         </div>
                       </div>
                     </div>`;
-                }).join('')}
+                  }).join('')}
+              </div>
+              <button onclick="showAddExpenseModal('${cat.id}')" class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:border-warning hover:text-warning transition text-sm font-bold no-print">＋ 新增核銷項目</button>
             </div>
-
-            <button onclick="showAddExpenseModal('${cat.id}')" class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-warning hover:text-warning transition text-sm font-bold">
-              ＋ 新增核銷項目
-            </button>
-          </div>
-        `;
+          </div>`;
         list.appendChild(div);
       });
     }
 
-    // ===== Modal 控制 =====
-    function closeAllModals() {
-      document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
-    }
+    window.toggleCat = function(catId) { if(collapsedCats.has(catId)) collapsedCats.delete(catId); else collapsedCats.add(catId); renderDetail(); };
+
+    // ===== Modal =====
+    function closeAllModals() { document.querySelectorAll('.modal-backdrop').forEach(m=>m.classList.remove('open')); }
 
     function showAddProjectModal() {
-      editingProjectId = null;
-      document.getElementById('modal-project-title').textContent = '新增計畫';
-      document.getElementById('inp-project-name').value = '';
-      document.getElementById('inp-project-desc').value = '';
+      editingProjectId=null;
+      document.getElementById('modal-project-title').textContent='新增計畫';
+      ['inp-project-name','inp-project-desc','inp-project-year','inp-project-deadline'].forEach(id=>document.getElementById(id).value='');
       document.getElementById('modal-project').classList.add('open');
       document.getElementById('inp-project-name').focus();
     }
 
     window.editCurrentProject = function() {
-      const proj = getProject();
-      if (!proj) return;
-      editingProjectId = proj.id;
-      document.getElementById('modal-project-title').textContent = '編輯計畫';
-      document.getElementById('inp-project-name').value = proj.name;
-      document.getElementById('inp-project-desc').value = proj.desc || '';
+      const p=getProject(); if(!p) return;
+      editingProjectId=p.id;
+      document.getElementById('modal-project-title').textContent='編輯計畫';
+      document.getElementById('inp-project-name').value=p.name;
+      document.getElementById('inp-project-desc').value=p.desc||'';
+      document.getElementById('inp-project-year').value=p.year||'';
+      document.getElementById('inp-project-deadline').value=p.deadline||'';
       document.getElementById('modal-project').classList.add('open');
     };
 
     window.saveProject = function() {
-      const name = document.getElementById('inp-project-name').value.trim();
-      if (!name) return alert('請輸入計畫名稱');
-      const desc = document.getElementById('inp-project-desc').value.trim();
-
-      if (editingProjectId) {
-        const proj = getProject(editingProjectId);
-        if (proj) { proj.name = name; proj.desc = desc; }
+      const name=document.getElementById('inp-project-name').value.trim();
+      if(!name) return toast('請輸入計畫名稱','error');
+      const desc=document.getElementById('inp-project-desc').value.trim();
+      const year=document.getElementById('inp-project-year').value.trim();
+      const deadline=document.getElementById('inp-project-deadline').value;
+      if(editingProjectId) {
+        const p=getProject(editingProjectId);
+        if(p) Object.assign(p,{name,desc,year,deadline});
+        toast('計畫已更新');
       } else {
-        data.projects.push({ id: uid(), name, desc, categories: [] });
+        data.projects.push({id:uid(),name,desc,year,deadline,categories:[]});
+        toast('計畫已建立');
       }
-      save();
-      closeAllModals();
-      if (currentProjectId) renderDetail();
+      save(); closeAllModals();
+      if(currentProjectId) renderDetail();
       renderDashboard();
     };
 
     window.deleteCurrentProject = function() {
-      if (!confirm('確定刪除此計畫？所有經費類別和核銷紀錄都會一併刪除！')) return;
-      data.projects = data.projects.filter(p => p.id !== currentProjectId);
-      save();
-      backToDashboard();
+      if(!confirm('確定刪除此計畫？所有經費和核銷紀錄都會刪除！')) return;
+      data.projects=data.projects.filter(p=>p.id!==currentProjectId);
+      save(); toast('計畫已刪除','warning'); backToDashboard();
     };
 
-    // --- 經費類別 ---
+    // --- 類別 ---
     function showAddCategoryModal() {
-      editingCategoryId = null;
-      document.getElementById('modal-category-title').textContent = '新增經費類別';
-      document.getElementById('inp-cat-name').value = '';
-      document.getElementById('inp-cat-budget').value = '';
+      editingCategoryId=null;
+      document.getElementById('modal-category-title').textContent='新增經費類別';
+      document.getElementById('inp-cat-name').value='';
+      document.getElementById('inp-cat-budget').value='';
       document.getElementById('modal-category').classList.add('open');
       document.getElementById('inp-cat-name').focus();
     }
 
     window.editCategory = function(catId) {
-      const proj = getProject();
-      const cat = proj?.categories.find(c => c.id === catId);
-      if (!cat) return;
-      editingCategoryId = catId;
-      document.getElementById('modal-category-title').textContent = '編輯經費類別';
-      document.getElementById('inp-cat-name').value = cat.name;
-      document.getElementById('inp-cat-budget').value = cat.budget;
+      const p=getProject(); const cat=p?.categories.find(c=>c.id===catId); if(!cat) return;
+      editingCategoryId=catId;
+      document.getElementById('modal-category-title').textContent='編輯經費類別';
+      document.getElementById('inp-cat-name').value=cat.name;
+      document.getElementById('inp-cat-budget').value=cat.budget;
       document.getElementById('modal-category').classList.add('open');
     };
 
     window.saveCategory = function() {
-      const name = document.getElementById('inp-cat-name').value.trim();
-      const budget = parseInt(document.getElementById('inp-cat-budget').value) || 0;
-      if (!name) return alert('請輸入類別名稱');
-
-      const proj = getProject();
-      if (!proj) return;
-
-      if (editingCategoryId) {
-        const cat = proj.categories.find(c => c.id === editingCategoryId);
-        if (cat) { cat.name = name; cat.budget = budget; }
-      } else {
-        proj.categories.push({ id: uid(), name, budget, expenses: [] });
-      }
-      save();
-      closeAllModals();
-      renderDetail();
+      const name=document.getElementById('inp-cat-name').value.trim();
+      const budget=parseFloat(document.getElementById('inp-cat-budget').value)||0;
+      if(!name) return toast('請輸入類別名稱','error');
+      const p=getProject(); if(!p) return;
+      if(editingCategoryId) { const c=p.categories.find(c=>c.id===editingCategoryId); if(c){c.name=name;c.budget=budget;} toast('類別已更新'); }
+      else { p.categories.push({id:uid(),name,budget,expenses:[]}); toast('類別已新增'); }
+      save(); closeAllModals(); renderDetail();
     };
 
     window.deleteCategory = function(catId) {
-      if (!confirm('確定刪除此類別？所有核銷紀錄都會一併刪除！')) return;
-      const proj = getProject();
-      if (proj) { proj.categories = proj.categories.filter(c => c.id !== catId); save(); renderDetail(); }
+      if(!confirm('確定刪除此類別？')) return;
+      const p=getProject(); if(p){p.categories=p.categories.filter(c=>c.id!==catId); save(); renderDetail(); toast('類別已刪除','warning');}
     };
 
-    // --- 核銷項目 ---
+    // --- 核銷 ---
     function showAddExpenseModal(catId) {
-      editingExpenseInfo = null;
-      document.getElementById('modal-expense-title').textContent = '新增核銷項目';
-      document.getElementById('inp-exp-name').value = '';
-      document.getElementById('inp-exp-amount').value = '';
-      document.getElementById('inp-exp-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('inp-exp-receipt').value = '';
-      document.getElementById('inp-exp-status').value = 'pending';
-      document.getElementById('inp-exp-note').value = '';
-      editingExpenseInfo = { catId, expId: null };
+      editingExpenseInfo={catId,expId:null};
+      document.getElementById('modal-expense-title').textContent='新增核銷項目';
+      document.getElementById('inp-exp-name').value='';
+      document.getElementById('inp-exp-amount').value='';
+      document.getElementById('inp-exp-date').value=new Date().toISOString().split('T')[0];
+      document.getElementById('inp-exp-receipt').value='';
+      document.getElementById('inp-exp-status').value='pending';
+      document.getElementById('inp-exp-note').value='';
       refreshVendorDropdown();
-      document.getElementById('inp-exp-vendor').value = '';
+      document.getElementById('inp-exp-vendor').value='';
       document.getElementById('modal-expense').classList.add('open');
       document.getElementById('inp-exp-name').focus();
     }
 
-    window.editExpense = function(catId, expId) {
-      const proj = getProject();
-      const cat = proj?.categories.find(c => c.id === catId);
-      const exp = cat?.expenses.find(e => e.id === expId);
-      if (!exp) return;
-      editingExpenseInfo = { catId, expId };
-      document.getElementById('modal-expense-title').textContent = '編輯核銷項目';
-      document.getElementById('inp-exp-name').value = exp.name;
-      document.getElementById('inp-exp-amount').value = exp.amount;
-      document.getElementById('inp-exp-date').value = exp.date || '';
-      document.getElementById('inp-exp-receipt').value = exp.receipt || '';
-      document.getElementById('inp-exp-status').value = exp.status || 'pending';
-      document.getElementById('inp-exp-note').value = exp.note || '';
+    window.editExpense = function(catId,expId) {
+      const p=getProject(); const cat=p?.categories.find(c=>c.id===catId); const exp=cat?.expenses.find(e=>e.id===expId); if(!exp) return;
+      editingExpenseInfo={catId,expId};
+      document.getElementById('modal-expense-title').textContent='編輯核銷項目';
+      document.getElementById('inp-exp-name').value=exp.name;
+      document.getElementById('inp-exp-amount').value=exp.amount;
+      document.getElementById('inp-exp-date').value=exp.date||'';
+      document.getElementById('inp-exp-receipt').value=exp.receipt||'';
+      document.getElementById('inp-exp-status').value=exp.status||'pending';
+      document.getElementById('inp-exp-note').value=exp.note||'';
       refreshVendorDropdown();
-      document.getElementById('inp-exp-vendor').value = exp.vendor || '';
+      document.getElementById('inp-exp-vendor').value=exp.vendor||'';
       document.getElementById('modal-expense').classList.add('open');
     };
 
+    window.duplicateExpense = function(catId,expId) {
+      const p=getProject(); const cat=p?.categories.find(c=>c.id===catId); const exp=cat?.expenses.find(e=>e.id===expId); if(!exp) return;
+      const newExp = {...exp, id:uid(), date:new Date().toISOString().split('T')[0], status:'pending'};
+      cat.expenses.push(newExp);
+      save(); renderDetail();
+      toast(`已複製「${exp.name}」，狀態重設為待核銷`);
+    };
+
     window.saveExpense = function() {
-      const name = document.getElementById('inp-exp-name').value.trim();
-      const amount = parseInt(document.getElementById('inp-exp-amount').value) || 0;
-      if (!name) return alert('請輸入項目名稱');
-      if (!amount) return alert('請輸入金額');
-
-      const vendor = document.getElementById('inp-exp-vendor').value;
-      const date = document.getElementById('inp-exp-date').value;
-      const receipt = document.getElementById('inp-exp-receipt').value.trim();
-      const status = document.getElementById('inp-exp-status').value;
-      const note = document.getElementById('inp-exp-note').value.trim();
-
-      const proj = getProject();
-      const cat = proj?.categories.find(c => c.id === editingExpenseInfo?.catId);
-      if (!cat) return;
-
-      if (editingExpenseInfo.expId) {
-        const exp = cat.expenses.find(e => e.id === editingExpenseInfo.expId);
-        if (exp) { Object.assign(exp, { name, amount, vendor, date, receipt, status, note }); }
-      } else {
-        cat.expenses.push({ id: uid(), name, amount, vendor, date, receipt, status, note });
-      }
-      save();
-      closeAllModals();
-      renderDetail();
+      const name=document.getElementById('inp-exp-name').value.trim();
+      const amount=parseFloat(document.getElementById('inp-exp-amount').value)||0;
+      if(!name) return toast('請輸入項目名稱','error');
+      if(!amount) return toast('請輸入金額','error');
+      const vendor=document.getElementById('inp-exp-vendor').value;
+      const date=document.getElementById('inp-exp-date').value;
+      const receipt=document.getElementById('inp-exp-receipt').value.trim();
+      const status=document.getElementById('inp-exp-status').value;
+      const note=document.getElementById('inp-exp-note').value.trim();
+      const p=getProject(); const cat=p?.categories.find(c=>c.id===editingExpenseInfo?.catId); if(!cat) return;
+      if(editingExpenseInfo.expId) { const e=cat.expenses.find(e=>e.id===editingExpenseInfo.expId); if(e) Object.assign(e,{name,amount,vendor,date,receipt,status,note}); toast('核銷項目已更新'); }
+      else { cat.expenses.push({id:uid(),name,amount,vendor,date,receipt,status,note}); toast('核銷項目已新增'); }
+      save(); closeAllModals(); renderDetail();
     };
 
-    window.deleteExpense = function(catId, expId) {
-      if (!confirm('確定刪除此核銷紀錄？')) return;
-      const proj = getProject();
-      const cat = proj?.categories.find(c => c.id === catId);
-      if (cat) { cat.expenses = cat.expenses.filter(e => e.id !== expId); save(); renderDetail(); }
+    window.deleteExpense = function(catId,expId) {
+      if(!confirm('確定刪除？')) return;
+      const p=getProject(); const cat=p?.categories.find(c=>c.id===catId);
+      if(cat){cat.expenses=cat.expenses.filter(e=>e.id!==expId); save(); renderDetail(); toast('已刪除','warning');}
     };
 
-    // ===== 廠商管理 =====
+    // ===== 廠商 =====
     function refreshVendorDropdown() {
-      const select = document.getElementById('inp-exp-vendor');
-      const currentVal = select.value;
-      select.innerHTML = '<option value="">-- 不指定 --</option>';
-      data.vendors.forEach(v => {
-        select.innerHTML += `<option value="${v}">${v}</option>`;
-      });
-      select.value = currentVal;
+      const s=document.getElementById('inp-exp-vendor'); const v=s.value;
+      s.innerHTML='<option value="">-- 不指定 --</option>';
+      data.vendors.forEach(v=>{ s.innerHTML+=`<option value="${v}">${v}</option>`; });
+      s.value=v;
     }
-
     function renderVendorList() {
-      const list = document.getElementById('vendor-list');
-      if (data.vendors.length === 0) {
-        list.innerHTML = '<p class="text-gray-400 text-center py-4">尚無廠商</p>';
-        return;
-      }
-      list.innerHTML = data.vendors.map((v, i) => `
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <span class="font-medium text-gray-800">🏪 ${v}</span>
-          <div class="flex gap-1">
-            <button onclick="renameVendor(${i})" class="text-gray-400 hover:text-primary text-sm" title="改名">✏️</button>
-            <button onclick="deleteVendor(${i})" class="text-gray-400 hover:text-danger text-sm" title="刪除">🗑️</button>
-          </div>
+      const l=document.getElementById('vendor-list');
+      if(!data.vendors.length){l.innerHTML='<p class="text-gray-400 text-center py-4">尚無廠商</p>';return;}
+      l.innerHTML=data.vendors.map((v,i)=>`<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"><span class="font-medium text-gray-800 dark:text-white">🏪 ${v}</span><div class="flex gap-1"><button onclick="renameVendor(${i})" class="text-gray-400 hover:text-primary text-sm">✏️</button><button onclick="deleteVendor(${i})" class="text-gray-400 hover:text-danger text-sm">🗑️</button></div></div>`).join('');
+    }
+    window.showVendorModal = function() { renderVendorList(); document.getElementById('inp-vendor-name').value=''; document.getElementById('modal-vendor').classList.add('open'); document.getElementById('inp-vendor-name').focus(); };
+    window.addVendor = function() { const n=document.getElementById('inp-vendor-name').value.trim(); if(!n) return; if(data.vendors.includes(n)) return toast('此廠商已存在','error'); data.vendors.push(n); data.vendors.sort((a,b)=>a.localeCompare(b,'zh-TW')); save(); document.getElementById('inp-vendor-name').value=''; renderVendorList(); refreshVendorDropdown(); toast('廠商已新增'); };
+    window.renameVendor = function(i) {
+      const old=data.vendors[i]; const n=prompt('修改廠商名稱：',old); if(!n||!n.trim()||n.trim()===old) return;
+      if(data.vendors.includes(n.trim())) return toast('名稱已存在','error');
+      let count=0; data.projects.forEach(p=>p.categories.forEach(c=>c.expenses.forEach(e=>{if(e.vendor===old){e.vendor=n.trim();count++;}})));
+      data.vendors[i]=n.trim(); data.vendors.sort((a,b)=>a.localeCompare(b,'zh-TW'));
+      save(); renderVendorList(); refreshVendorDropdown(); if(currentProjectId)renderDetail();
+      toast(`已更新，同步修改 ${count} 筆紀錄`);
+    };
+    window.deleteVendor = function(i) {
+      const name=data.vendors[i]; let count=0;
+      data.projects.forEach(p=>p.categories.forEach(c=>c.expenses.forEach(e=>{if(e.vendor===name)count++;})));
+      if(!confirm(count>0?`「${name}」有 ${count} 筆紀錄在使用，確定刪除？`:`確定刪除「${name}」？`)) return;
+      if(count>0) data.projects.forEach(p=>p.categories.forEach(c=>c.expenses.forEach(e=>{if(e.vendor===name)e.vendor='';})));
+      data.vendors.splice(i,1); save(); renderVendorList(); refreshVendorDropdown(); if(currentProjectId)renderDetail(); toast('廠商已刪除','warning');
+    };
+    window.quickAddVendor = function() {
+      const n=prompt('輸入新廠商名稱：'); if(!n||!n.trim()) return;
+      if(data.vendors.includes(n.trim())){document.getElementById('inp-exp-vendor').value=n.trim();return;}
+      data.vendors.push(n.trim()); data.vendors.sort((a,b)=>a.localeCompare(b,'zh-TW'));
+      save(); refreshVendorDropdown(); document.getElementById('inp-exp-vendor').value=n.trim(); toast('廠商已新增');
+    };
+
+    // ===== 模板 =====
+    const TEMPLATES = [
+      { name: '教育部補助計畫', desc: '教育部補助經費', categories: [
+        {name:'人事費',budget:50000},{name:'經常門',budget:30000},{name:'資本門',budget:80000},{name:'雜支',budget:10000}
+      ]},
+      { name: '校內活動經費', desc: '校內自籌活動', categories: [
+        {name:'場地費',budget:5000},{name:'材料費',budget:10000},{name:'餐費',budget:8000},{name:'交通費',budget:5000},{name:'雜支',budget:2000}
+      ]},
+      { name: '校外教學', desc: '戶外教育活動', categories: [
+        {name:'租車費',budget:30000},{name:'門票/場地費',budget:15000},{name:'保險費',budget:5000},{name:'餐費',budget:10000},{name:'雜支',budget:3000}
+      ]},
+      { name: '資訊設備採購', desc: '資訊設備更新', categories: [
+        {name:'硬體設備',budget:100000},{name:'軟體授權',budget:30000},{name:'安裝/維護',budget:10000}
+      ]}
+    ];
+
+    window.showTemplateModal = function() {
+      const list=document.getElementById('template-list');
+      list.innerHTML=TEMPLATES.map((t,i)=>`
+        <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition" onclick="createFromTemplate(${i})">
+          <h4 class="font-bold text-gray-800 dark:text-white">${t.name}</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">${t.desc}</p>
+          <p class="text-xs text-gray-400 mt-1">${t.categories.map(c=>c.name).join(' · ')}</p>
         </div>
       `).join('');
-    }
-
-    window.showVendorModal = function() {
-      renderVendorList();
-      document.getElementById('inp-vendor-name').value = '';
-      document.getElementById('modal-vendor').classList.add('open');
-      document.getElementById('inp-vendor-name').focus();
+      document.getElementById('modal-template').classList.add('open');
     };
 
-    window.addVendor = function() {
-      const name = document.getElementById('inp-vendor-name').value.trim();
-      if (!name) return;
-      if (data.vendors.includes(name)) return alert('此廠商已存在');
-      data.vendors.push(name);
-      data.vendors.sort((a, b) => a.localeCompare(b, 'zh-TW'));
-      save();
-      document.getElementById('inp-vendor-name').value = '';
-      renderVendorList();
-      refreshVendorDropdown();
-    };
-
-    window.renameVendor = function(index) {
-      const oldName = data.vendors[index];
-      const newName = prompt(`修改廠商名稱：`, oldName);
-      if (!newName || !newName.trim() || newName.trim() === oldName) return;
-      const trimmed = newName.trim();
-      if (data.vendors.includes(trimmed)) return alert('此廠商名稱已存在');
-      // 更新所有核銷紀錄中的廠商名稱
-      let count = 0;
-      data.projects.forEach(p => p.categories.forEach(c => c.expenses.forEach(e => {
-        if (e.vendor === oldName) { e.vendor = trimmed; count++; }
-      })));
-      data.vendors[index] = trimmed;
-      data.vendors.sort((a, b) => a.localeCompare(b, 'zh-TW'));
-      save();
-      renderVendorList();
-      refreshVendorDropdown();
-      if (currentProjectId) renderDetail();
-      alert(`已更新廠商名稱，同步修改了 ${count} 筆核銷紀錄`);
-    };
-
-    window.deleteVendor = function(index) {
-      const name = data.vendors[index];
-      // 檢查有多少筆紀錄在用
-      let count = 0;
-      data.projects.forEach(p => p.categories.forEach(c => c.expenses.forEach(e => {
-        if (e.vendor === name) count++;
-      })));
-      const msg = count > 0
-        ? `廠商「${name}」目前有 ${count} 筆核銷紀錄在使用。\n刪除後這些紀錄的廠商欄位會變成空白。\n確定刪除？`
-        : `確定刪除廠商「${name}」？`;
-      if (!confirm(msg)) return;
-      // 清除紀錄中的廠商
-      if (count > 0) {
-        data.projects.forEach(p => p.categories.forEach(c => c.expenses.forEach(e => {
-          if (e.vendor === name) e.vendor = '';
-        })));
-      }
-      data.vendors.splice(index, 1);
-      save();
-      renderVendorList();
-      refreshVendorDropdown();
-      if (currentProjectId) renderDetail();
-    };
-
-    window.quickAddVendor = function() {
-      const name = prompt('輸入新廠商名稱：');
-      if (!name || !name.trim()) return;
-      if (data.vendors.includes(name.trim())) {
-        document.getElementById('inp-exp-vendor').value = name.trim();
-        return;
-      }
-      data.vendors.push(name.trim());
-      data.vendors.sort((a, b) => a.localeCompare(b, 'zh-TW'));
-      save();
-      refreshVendorDropdown();
-      document.getElementById('inp-exp-vendor').value = name.trim();
-    };
-
-    // ===== 匯出 / 匯入 =====
-    window.exportAll = function() {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `budget-tracker-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-    };
-
-    window.importAll = function() {
-      document.getElementById('import-file').click();
-    };
-
-    document.getElementById('import-file').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const imported = JSON.parse(ev.target.result);
-          if (!imported.projects) throw new Error('格式不正確');
-          if (!confirm(`匯入 ${imported.projects.length} 個計畫？這會取代現有資料！`)) return;
-          data = imported;
-          save();
-          currentProjectId = null;
-          document.getElementById('detail-view').classList.add('hidden');
-          document.getElementById('dashboard-view').classList.remove('hidden');
-          renderDashboard();
-        } catch (err) { alert('匯入失敗: ' + err.message); }
+    window.createFromTemplate = function(i) {
+      const t=TEMPLATES[i];
+      const proj = { id:uid(), name:t.name, desc:t.desc, year:'', deadline:'',
+        categories: t.categories.map(c=>({id:uid(),name:c.name,budget:c.budget,expenses:[]}))
       };
-      reader.readAsText(file);
-      e.target.value = '';
+      data.projects.push(proj);
+      save(); closeAllModals(); renderDashboard();
+      toast(`已從模板建立「${t.name}」`);
+      openProject(proj.id);
+    };
+
+    // ===== 匯出/匯入 =====
+    window.exportAll = function() {
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download=`budget-tracker-${new Date().toISOString().split('T')[0]}.json`; a.click();
+      toast('JSON 已匯出');
+    };
+    window.importAll = function() { document.getElementById('import-file').click(); };
+    document.getElementById('import-file').addEventListener('change',e=>{
+      const f=e.target.files[0]; if(!f) return;
+      const r=new FileReader();
+      r.onload=ev=>{ try { const d=JSON.parse(ev.target.result); if(!d.projects) throw new Error('格式不正確');
+        if(!confirm(`匯入 ${d.projects.length} 個計畫？`)) return;
+        data=d; if(!data.vendors)data.vendors=[]; save(); currentProjectId=null;
+        document.getElementById('detail-view').classList.add('hidden');
+        document.getElementById('dashboard-view').classList.remove('hidden');
+        renderDashboard(); toast('匯入成功');
+      } catch(err){toast('匯入失敗: '+err.message,'error');} };
+      r.readAsText(f); e.target.value='';
     });
 
-    // ===== 鍵盤快捷鍵 =====
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeAllModals();
-    });
+    window.exportCSV = function() {
+      const rows = ['計畫,類別,項目,金額,廠商,日期,收據,狀態,備註'];
+      data.projects.forEach(p => p.categories.forEach(c => {
+        if(c.expenses.length===0) rows.push(`"${p.name}","${c.name}","(無核銷)",${c.budget},,,,預算,`);
+        c.expenses.forEach(e => {
+          const st = statusMap[e.status]?.label || e.status;
+          rows.push(`"${p.name}","${c.name}","${e.name}",${e.amount},"${e.vendor||''}","${e.date||''}","${e.receipt||''}","${st}","${e.note||''}"`);
+        });
+      }));
+      const blob=new Blob(["\ufeff"+rows.join('\n')],{type:'text/csv'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download=`budget-report-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+      toast('CSV 已匯出');
+    };
+
+    window.printReport = function() { window.print(); };
+
+    // ===== 快捷鍵 =====
+    document.addEventListener('keydown', e => { if(e.key==='Escape') closeAllModals(); });
 
     // ===== 啟動 =====
     load();
+    document.getElementById('dark-toggle').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
     renderDashboard();
   </script>
 </body>
