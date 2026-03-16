@@ -1,0 +1,75 @@
+/* style.css - 所有自訂樣式（從 <style> 搬出來）+ 列印樣式 */
+
+body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+.card-shadow { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06); }
+.modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:50;opacity:0;pointer-events:none;transition:opacity .3s }
+.modal-backdrop.open { opacity:1;pointer-events:auto }
+.modal-backdrop.open .modal-box { transform:scale(1);opacity:1 }
+.modal-box { transform:scale(.95);opacity:0;transition:all .3s;max-height:90vh;overflow-y:auto }
+.progress-bar { transition: width 0.5s ease; }
+.toast { animation: slideIn .3s ease, fadeOut .3s ease 2.7s forwards; }
+@keyframes slideIn { from { transform: translateX(100%); opacity:0 } to { transform: translateX(0); opacity:1 } }
+@keyframes fadeOut { to { opacity:0; transform: translateX(50%) } }
+.cat-dragging { opacity: 0.5; }
+.cat-drag-over { border-color: #4f46e5 !important; background: #eef2ff !important; }
+
+/* 登入畫面 */
+#login-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+}
+.login-box {
+  text-align: center;
+  padding: 3rem 2rem;
+  max-width: 400px;
+  width: 100%;
+}
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 2rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: #374151;
+}
+.google-btn:hover {
+  border-color: #4f46e5;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.15);
+}
+.dark .google-btn {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-color: #4b5563;
+}
+.dark .google-btn:hover {
+  border-color: #818cf8;
+}
+
+/* 使用者資訊 */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* 列印樣式 */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white !important; }
+  .card-shadow { box-shadow: none !important; border: 1px solid #ddd !important; }
+  #login-view { display: none !important; }
+}
