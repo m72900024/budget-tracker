@@ -10,10 +10,7 @@ window.BT = {
   editingExpenseInfo: null,
   collapsedCats: new Set(),
   yearFilter: '',
-  currentUser: null,
-  save: null,   // 由 db.js 設定
-  signIn: null, // 由 auth.js 設定
-  signOut: null  // 由 auth.js 設定
+  save: null  // 由 db.js 設定
 };
 
 // ===== 工具函數 =====
@@ -76,17 +73,9 @@ function initDarkMode() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
 
 // ===== 啟動 =====
-BT.init = async function() {
+BT.init = function() {
   initDarkMode();
-
-  // 初始化 Firebase（用於可選的雲端同步）
-  firebase.initializeApp(firebaseConfig);
-
-  // 設定 Auth（登入選配）
-  initAuth();
-
-  // 預設從 localStorage 載入，不需登入
   loadFromLocal();
-  showAppUI();
+  document.getElementById('app-container').classList.remove('hidden');
   renderDashboard();
 };

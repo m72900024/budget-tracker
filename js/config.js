@@ -1,19 +1,8 @@
 /**
- * config.js - Firebase 設定 + 管理員名單 + 常數
+ * config.js - 常數設定
  */
 
-const firebaseConfig = {
-  apiKey: "AIzaSyClniX_uQNPDRC8bTLZP-s3-aGB6466t1c",
-  authDomain: "github-f016e.firebaseapp.com",
-  projectId: "github-f016e",
-  storageBucket: "github-f016e.firebasestorage.app",
-  messagingSenderId: "726498300688",
-  appId: "1:726498300688:web:903d43c66c35b74e3e05d3"
-};
-
-const ADMIN_EMAILS = ['m72900024@gmail.com'];
 const STORAGE_KEY = 'budget-tracker-data';
-const FIRESTORE_COLLECTION = 'budget-tracker';
 
 const statusMap = {
   pending:   { label:'⏳ 待核銷', color:'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },

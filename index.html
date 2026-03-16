@@ -16,18 +16,12 @@
   </script>
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- Firebase SDK (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">
 
   <!-- Toast Container -->
   <div id="toast-container" class="fixed top-4 right-4 z-[999] space-y-2"></div>
-
-  <!-- 登入畫面（僅 redirect 回來時短暫顯示） -->
-  <div id="login-view" class="hidden"></div>
 
   <!-- ===== 主應用容器 ===== -->
   <div id="app-container" class="hidden">
@@ -37,7 +31,6 @@
         <div class="flex justify-between items-center flex-wrap gap-3">
           <h1 class="text-3xl font-extrabold text-primary dark:text-indigo-400 flex items-center gap-2">💰 計畫經費追蹤系統</h1>
           <div class="flex gap-2 flex-wrap items-center">
-            <div id="user-info"></div>
             <button onclick="toggleDarkMode()" id="dark-toggle" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-3 rounded-lg text-sm transition">🌙</button>
             <button onclick="showVendorModal()" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商</button>
             <button onclick="showTemplateModal()" class="bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-700 dark:text-blue-300 font-bold py-2 px-4 rounded-lg text-sm transition">📋 模板</button>
@@ -255,7 +248,6 @@
   <!-- JS 模組載入（順序重要） -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
-  <script src="js/auth.js"></script>
   <script src="js/db.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/detail.js"></script>
