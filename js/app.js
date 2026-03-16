@@ -12,7 +12,6 @@ window.BT = {
   yearFilter: '',
   currentUser: null,
   save: null,   // 由 db.js 設定
-  load: null,   // 由 db.js 設定
   signIn: null, // 由 auth.js 設定
   signOut: null  // 由 auth.js 設定
 };
@@ -80,12 +79,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModa
 BT.init = async function() {
   initDarkMode();
 
-  // 初始化 Firebase
+  // 初始化 Firebase（用於可選的雲端同步）
   firebase.initializeApp(firebaseConfig);
 
-  // 設定 Auth 監聽
+  // 設定 Auth（登入選配）
   initAuth();
 
-  // Firebase Auth 狀態改變會觸發 onAuthStateChanged，
-  // 在那裡載入資料並渲染
+  // 預設從 localStorage 載入，不需登入
+  loadFromLocal();
+  showAppUI();
+  renderDashboard();
 };
