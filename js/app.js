@@ -65,6 +65,25 @@ window.toggleDarkMode = function() {
   document.getElementById('dark-toggle').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
 };
 
+window.toggleMoreMenu = function() {
+  const menu = document.getElementById('more-menu');
+  const btn = document.getElementById('more-menu-btn');
+  if (!menu || !btn) return;
+  menu.classList.toggle('hidden');
+  btn.setAttribute('aria-expanded', !menu.classList.contains('hidden'));
+};
+window.closeMoreMenu = function() {
+  const menu = document.getElementById('more-menu');
+  const btn = document.getElementById('more-menu-btn');
+  if (menu) menu.classList.add('hidden');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+};
+document.addEventListener('click', e => {
+  const menu = document.getElementById('more-menu');
+  const btn = document.getElementById('more-menu-btn');
+  if (menu && !menu.contains(e.target) && !btn.contains(e.target)) window.closeMoreMenu();
+});
+
 function initDarkMode() {
   if (localStorage.getItem('dark-mode') === 'true') {
     document.documentElement.classList.add('dark');

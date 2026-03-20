@@ -2,6 +2,12 @@
  * dashboard.js - 面板渲染 + 圓餅圖 + 年度篩選 + 搜尋
  */
 
+let searchDebounceTimer = null;
+window.debouncedRender = function() {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(renderDashboard, 300);
+};
+
 // ===== 圓餅圖 =====
 function drawPie() {
   const canvas = document.getElementById('pie-chart');

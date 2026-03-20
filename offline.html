@@ -116,9 +116,18 @@
             <button onclick="importCSV()" aria-label="匯入CSV" class="bg-teal-100 dark:bg-teal-900 hover:bg-teal-200 text-teal-700 dark:text-teal-300 font-bold py-2 px-4 rounded-lg text-sm transition">📥 CSV匯入</button>
             <button onclick="exportAll()" aria-label="匯出JSON" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📤 JSON匯出</button>
             <button onclick="importAll()" aria-label="匯入JSON" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📥 JSON匯入</button>
+            <!-- 更多操作（手機收起） -->
+            <button onclick="toggleMoreMenu()" id="more-menu-btn" aria-label="更多操作" aria-expanded="false" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-3 rounded-lg text-sm transition">⋯ 更多</button>
             <input type="file" id="import-file" accept=".json" class="hidden">
             <input type="file" id="import-csv-file" accept=".csv" class="hidden">
           </div>
+        </div>
+        <!-- 更多操作下拉選單 -->
+        <div id="more-menu" class="hidden flex flex-wrap gap-2 mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+          <button onclick="exportCSV();closeMoreMenu()" aria-label="匯出CSV" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition w-full sm:w-auto">📊 匯出CSV</button>
+          <button onclick="importCSV();closeMoreMenu()" aria-label="匯入CSV" class="bg-teal-100 dark:bg-teal-900 hover:bg-teal-200 text-teal-700 dark:text-teal-300 font-bold py-2 px-4 rounded-lg text-sm transition w-full sm:w-auto">📥 CSV匯入</button>
+          <button onclick="exportAll();closeMoreMenu()" aria-label="匯出JSON" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition w-full sm:w-auto">📤 JSON匯出</button>
+          <button onclick="importAll();closeMoreMenu()" aria-label="匯入JSON" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition w-full sm:w-auto">📥 JSON匯入</button>
         </div>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">管理各項計畫預算與核銷進度（離線版，資料存於瀏覽器）</p>
       </header>
@@ -151,7 +160,7 @@
           </div>
           <div class="flex-1 space-y-3">
             <label for="dashboard-search" class="sr-only">搜尋計畫</label>
-            <input type="text" id="dashboard-search" placeholder="🔍 搜尋計畫名稱..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg" oninput="renderDashboard()">
+            <input type="text" id="dashboard-search" placeholder="🔍 搜尋計畫名稱..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg" oninput="debouncedRender()">
             <!-- 年度篩選 -->
             <div class="flex gap-2 flex-wrap" id="year-tags"></div>
           </div>
@@ -351,6 +360,13 @@
     rejected:  { label:'❌ 退件',   color:'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' }
   };
 
+  // 搜尋防抖
+  let searchDebounceTimer = null;
+  function debouncedRender() {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(renderDashboard, 300);
+  }
+
   // 狀態標籤 → key 的反向對應（CSV 匯入用）
   const statusLabelToKey = {};
   Object.entries(statusMap).forEach(([k, v]) => {
@@ -424,6 +440,24 @@
     localStorage.setItem('dark-mode', document.documentElement.classList.contains('dark'));
     document.getElementById('dark-toggle').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
   };
+
+  window.toggleMoreMenu = function() {
+    const menu = document.getElementById('more-menu');
+    const btn = document.getElementById('more-menu-btn');
+    menu.classList.toggle('hidden');
+    const isOpen = !menu.classList.contains('hidden');
+    btn.setAttribute('aria-expanded', isOpen);
+  };
+  window.closeMoreMenu = function() {
+    document.getElementById('more-menu').classList.add('hidden');
+    document.getElementById('more-menu-btn').setAttribute('aria-expanded', 'false');
+  };
+  // 點外面自動關閉
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('more-menu');
+    const btn = document.getElementById('more-menu-btn');
+    if (menu && !menu.contains(e.target) && !btn.contains(e.target)) closeMoreMenu();
+  });
 
   function initDarkMode() {
     if (localStorage.getItem('dark-mode') === 'true') {
@@ -779,9 +813,9 @@
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-gray-800 dark:text-white">$${fmt(exp.amount||0)}</span>
                       <div class="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity no-print">
-                        <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" aria-label="複製核銷項目" class="text-gray-400 hover:text-blue-500 text-xs" title="複製">📋</button>
-                        <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" aria-label="編輯核銷項目" class="text-gray-400 hover:text-primary text-xs">✏️</button>
-                        <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" aria-label="刪除核銷項目" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
+                        <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" aria-label="複製核銷項目" class="text-gray-400 hover:text-blue-500 text-xs min-w-[44px] min-h-[44px] flex items-center justify-center" title="複製">📋</button>
+                        <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" aria-label="編輯核銷項目" class="text-gray-400 hover:text-primary text-xs min-w-[44px] min-h-[44px] flex items-center justify-center">✏️</button>
+                        <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" aria-label="刪除核銷項目" class="text-gray-400 hover:text-danger text-xs min-w-[44px] min-h-[44px] flex items-center justify-center">🗑️</button>
                       </div>
                     </div>
                   </div>`;

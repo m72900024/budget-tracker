@@ -101,9 +101,9 @@ function renderDetail() {
                   <div class="flex items-center gap-2">
                     <span class="font-bold text-gray-800 dark:text-white">$${fmt(exp.amount||0)}</span>
                     <div class="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity no-print">
-                      <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" aria-label="複製核銷項目" class="text-gray-400 hover:text-blue-500 text-xs" title="複製">📋</button>
-                      <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" aria-label="編輯核銷項目" class="text-gray-400 hover:text-primary text-xs">✏️</button>
-                      <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" aria-label="刪除核銷項目" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
+                      <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" aria-label="複製核銷項目" class="text-gray-400 hover:text-blue-500 text-xs min-w-[44px] min-h-[44px] flex items-center justify-center" title="複製">📋</button>
+                      <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" aria-label="編輯核銷項目" class="text-gray-400 hover:text-primary text-xs min-w-[44px] min-h-[44px] flex items-center justify-center">✏️</button>
+                      <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" aria-label="刪除核銷項目" class="text-gray-400 hover:text-danger text-xs min-w-[44px] min-h-[44px] flex items-center justify-center">🗑️</button>
                     </div>
                   </div>
                 </div>`;
