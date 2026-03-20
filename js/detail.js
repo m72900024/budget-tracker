@@ -22,8 +22,10 @@ function renderDetail() {
 
   document.getElementById('detail-used-label').textContent = `已用 $${fmt(c.used)} / $${fmt(c.budget)}`;
   document.getElementById('detail-remain-label').textContent = `剩餘 $${fmt(c.remain)} (${c.percent}%)`;
-  document.getElementById('detail-progress').style.width = Math.min(c.percent, 100) + '%';
-  document.getElementById('detail-progress').className = `progress-bar rounded-full h-4 ${c.percent>90?'bg-danger':c.percent>70?'bg-warning':'bg-primary'}`;
+  const progEl = document.getElementById('detail-progress');
+  progEl.style.width = Math.min(c.percent, 100) + '%';
+  progEl.className = `progress-bar rounded-full h-4 ${c.percent>90?'bg-danger':c.percent>70?'bg-warning':'bg-primary'}`;
+  progEl.setAttribute('aria-valuenow', c.percent);
 
   const list = document.getElementById('categories-list');
   list.innerHTML = '';
@@ -70,8 +72,8 @@ function renderDetail() {
           </div>
           <div class="flex gap-2 items-center">
             <span class="text-sm font-bold ${cc.remain<0?'text-danger':'text-secondary'}">剩餘 $${fmt(cc.remain)} ${cc.remain<0?'⚠️超支！':''}</span>
-            <button onclick="event.stopPropagation();editCategory('${cat.id}')" class="text-gray-400 hover:text-primary text-sm no-print">✏️</button>
-            <button onclick="event.stopPropagation();deleteCategory('${cat.id}')" class="text-gray-400 hover:text-danger text-sm no-print">🗑️</button>
+            <button onclick="event.stopPropagation();editCategory('${cat.id}')" aria-label="編輯類別" class="text-gray-400 hover:text-primary text-sm no-print">✏️</button>
+            <button onclick="event.stopPropagation();deleteCategory('${cat.id}')" aria-label="刪除類別" class="text-gray-400 hover:text-danger text-sm no-print">🗑️</button>
           </div>
         </div>
         <div class="flex justify-between text-xs text-gray-400 mb-1">
@@ -79,7 +81,7 @@ function renderDetail() {
           <span>${pct}%</span>
         </div>
         <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
-          <div class="progress-bar ${progressColor} rounded-full h-2" style="width:${Math.min(pct,100)}%"></div>
+          <div class="progress-bar ${progressColor} rounded-full h-2" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="width:${Math.min(pct,100)}%"></div>
         </div>
         <div class="${isCollapsed ? 'hidden' : ''}">
           <div class="space-y-2">
@@ -99,15 +101,15 @@ function renderDetail() {
                   <div class="flex items-center gap-2">
                     <span class="font-bold text-gray-800 dark:text-white">$${fmt(exp.amount||0)}</span>
                     <div class="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity no-print">
-                      <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-blue-500 text-xs" title="複製">📋</button>
-                      <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-primary text-xs">✏️</button>
-                      <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
+                      <button onclick="event.stopPropagation();duplicateExpense('${cat.id}','${exp.id}')" aria-label="複製核銷項目" class="text-gray-400 hover:text-blue-500 text-xs" title="複製">📋</button>
+                      <button onclick="event.stopPropagation();editExpense('${cat.id}','${exp.id}')" aria-label="編輯核銷項目" class="text-gray-400 hover:text-primary text-xs">✏️</button>
+                      <button onclick="event.stopPropagation();deleteExpense('${cat.id}','${exp.id}')" aria-label="刪除核銷項目" class="text-gray-400 hover:text-danger text-xs">🗑️</button>
                     </div>
                   </div>
                 </div>`;
               }).join('')}
           </div>
-          <button onclick="showAddExpenseModal('${cat.id}')" class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:border-warning hover:text-warning transition text-sm font-bold no-print">＋ 新增核銷項目</button>
+          <button onclick="showAddExpenseModal('${cat.id}')" aria-label="新增核銷項目" class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:border-warning hover:text-warning transition text-sm font-bold no-print">＋ 新增核銷項目</button>
         </div>
       </div>`;
     list.appendChild(div);

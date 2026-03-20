@@ -21,7 +21,7 @@
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors">
 
   <!-- Toast Container -->
-  <div id="toast-container" class="fixed top-4 right-4 z-[999] space-y-2"></div>
+  <div id="toast-container" class="fixed top-4 right-4 z-[999] space-y-2" aria-live="polite" role="status"></div>
 
   <!-- ===== 主應用容器 ===== -->
   <div id="app-container" class="hidden">
@@ -31,15 +31,15 @@
         <div class="flex justify-between items-center flex-wrap gap-3">
           <h1 class="text-3xl font-extrabold text-primary dark:text-indigo-400 flex items-center gap-2">💰 計畫經費追蹤系統</h1>
           <div class="flex gap-2 flex-wrap items-center">
-            <button onclick="toggleDarkMode()" id="dark-toggle" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-3 rounded-lg text-sm transition">🌙</button>
-            <button onclick="showVendorModal()" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商</button>
-            <button onclick="showBackupModal()" class="bg-orange-100 dark:bg-orange-900 hover:bg-orange-200 text-orange-700 dark:text-orange-300 font-bold py-2 px-4 rounded-lg text-sm transition">📦 備份</button>
-            <button onclick="showTemplateModal()" class="bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-700 dark:text-blue-300 font-bold py-2 px-4 rounded-lg text-sm transition">📋 模板</button>
-            <button onclick="printReport()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">🖨️ 列印</button>
-            <button onclick="exportCSV()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📊 匯出CSV</button>
-            <button onclick="importCSV()" class="bg-teal-100 dark:bg-teal-900 hover:bg-teal-200 text-teal-700 dark:text-teal-300 font-bold py-2 px-4 rounded-lg text-sm transition">📥 CSV匯入</button>
-            <button onclick="exportAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📤 JSON匯出</button>
-            <button onclick="importAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📥 JSON匯入</button>
+            <button onclick="toggleDarkMode()" id="dark-toggle" aria-label="切換深色模式" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-3 rounded-lg text-sm transition">🌙</button>
+            <button onclick="showVendorModal()" aria-label="廠商管理" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商</button>
+            <button onclick="showBackupModal()" aria-label="備份管理" class="bg-orange-100 dark:bg-orange-900 hover:bg-orange-200 text-orange-700 dark:text-orange-300 font-bold py-2 px-4 rounded-lg text-sm transition">📦 備份</button>
+            <button onclick="showTemplateModal()" aria-label="模板" class="bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-700 dark:text-blue-300 font-bold py-2 px-4 rounded-lg text-sm transition">📋 模板</button>
+            <button onclick="printReport()" aria-label="列印報表" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">🖨️ 列印</button>
+            <button onclick="exportCSV()" aria-label="匯出CSV" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📊 匯出CSV</button>
+            <button onclick="importCSV()" aria-label="匯入CSV" class="bg-teal-100 dark:bg-teal-900 hover:bg-teal-200 text-teal-700 dark:text-teal-300 font-bold py-2 px-4 rounded-lg text-sm transition">📥 CSV匯入</button>
+            <button onclick="exportAll()" aria-label="匯出JSON" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📤 JSON匯出</button>
+            <button onclick="importAll()" aria-label="匯入JSON" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📥 JSON匯入</button>
             <input type="file" id="import-file" accept=".json" class="hidden">
             <input type="file" id="import-csv-file" accept=".csv" class="hidden">
           </div>
@@ -74,6 +74,7 @@
             <canvas id="pie-chart" width="180" height="180"></canvas>
           </div>
           <div class="flex-1 space-y-3">
+            <label for="dashboard-search" class="sr-only">搜尋計畫</label>
             <input type="text" id="dashboard-search" placeholder="🔍 搜尋計畫名稱..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg" oninput="renderDashboard()">
             <!-- 年度篩選 -->
             <div class="flex gap-2 flex-wrap" id="year-tags"></div>
@@ -83,7 +84,7 @@
         <div id="project-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
 
         <div class="mt-6 text-center no-print">
-          <button onclick="showAddProjectModal()" class="bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-lg">＋ 新增計畫</button>
+          <button onclick="showAddProjectModal()" aria-label="新增計畫" class="bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-lg">＋ 新增計畫</button>
         </div>
       </div>
 
@@ -109,7 +110,7 @@
               <span id="detail-remain-label" class="text-gray-600 dark:text-gray-300"></span>
             </div>
             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-              <div id="detail-progress" class="progress-bar bg-primary rounded-full h-4"></div>
+              <div id="detail-progress" class="progress-bar bg-primary rounded-full h-4" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
           </div>
         </div>
@@ -117,31 +118,31 @@
         <div id="categories-list" class="space-y-4"></div>
 
         <div class="mt-4 no-print">
-          <button onclick="showAddCategoryModal()" class="bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg transition">＋ 新增經費類別</button>
+          <button onclick="showAddCategoryModal()" aria-label="新增經費類別" class="bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg transition">＋ 新增經費類別</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Modal: 計畫 -->
-  <div id="modal-project" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+  <div id="modal-project" class="modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAllModals()">
     <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
       <h3 id="modal-project-title" class="text-xl font-bold dark:text-white mb-4">新增計畫</h3>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">計畫名稱</label>
+          <label for="inp-project-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">計畫名稱</label>
           <input type="text" id="inp-project-name" placeholder="例：數位學習計畫" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" onkeydown="if(event.key==='Enter')saveProject()">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">說明（選填）</label>
+          <label for="inp-project-desc" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">說明（選填）</label>
           <input type="text" id="inp-project-desc" placeholder="例：112年度教育部補助" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年度/學期（選填）</label>
+          <label for="inp-project-year" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年度/學期（選填）</label>
           <input type="text" id="inp-project-year" placeholder="例：114學年" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">結案期限（選填）</label>
+          <label for="inp-project-deadline" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">結案期限（選填）</label>
           <input type="date" id="inp-project-deadline" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
       </div>
@@ -153,16 +154,16 @@
   </div>
 
   <!-- Modal: 經費類別 -->
-  <div id="modal-category" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+  <div id="modal-category" class="modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAllModals()">
     <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
       <h3 id="modal-category-title" class="text-xl font-bold dark:text-white mb-4">新增經費類別</h3>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">類別名稱</label>
+          <label for="inp-cat-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">類別名稱</label>
           <input type="text" id="inp-cat-name" placeholder="例：人事費" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">預算金額</label>
+          <label for="inp-cat-budget" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">預算金額</label>
           <input type="number" step="0.1" id="inp-cat-budget" placeholder="50000" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" onkeydown="if(event.key==='Enter')saveCategory()">
         </div>
       </div>
@@ -174,35 +175,35 @@
   </div>
 
   <!-- Modal: 核銷項目 -->
-  <div id="modal-expense" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+  <div id="modal-expense" class="modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAllModals()">
     <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
       <h3 id="modal-expense-title" class="text-xl font-bold dark:text-white mb-4">新增核銷項目</h3>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">項目名稱</label>
+          <label for="inp-exp-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">項目名稱</label>
           <input type="text" id="inp-exp-name" placeholder="例：講師鐘點費" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金額</label>
+          <label for="inp-exp-amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金額</label>
           <input type="number" step="0.1" id="inp-exp-amount" placeholder="3000" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">廠商</label>
+          <label for="inp-exp-vendor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">廠商</label>
           <div class="flex gap-2">
             <select id="inp-exp-vendor" class="flex-1 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"><option value="">-- 不指定 --</option></select>
-            <button onclick="quickAddVendor()" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold px-3 rounded-lg text-sm transition">＋</button>
+            <button onclick="quickAddVendor()" aria-label="快速新增廠商" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold px-3 rounded-lg text-sm transition">＋</button>
           </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">日期</label>
+          <label for="inp-exp-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">日期</label>
           <input type="date" id="inp-exp-date" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">收據編號（選填）</label>
+          <label for="inp-exp-receipt" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">收據編號（選填）</label>
           <input type="text" id="inp-exp-receipt" placeholder="例：A-001" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">核銷狀態</label>
+          <label for="inp-exp-status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">核銷狀態</label>
           <select id="inp-exp-status" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
             <option value="pending">⏳ 待核銷</option>
             <option value="submitted">📝 已送件</option>
@@ -211,7 +212,7 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">備註（選填）</label>
+          <label for="inp-exp-note" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">備註（選填）</label>
           <input type="text" id="inp-exp-note" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg">
         </div>
       </div>
@@ -223,10 +224,11 @@
   </div>
 
   <!-- Modal: 廠商管理 -->
-  <div id="modal-vendor" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+  <div id="modal-vendor" class="modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAllModals()">
     <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
       <h3 class="text-xl font-bold dark:text-white mb-4">🏪 廠商管理</h3>
       <div class="flex gap-2 mb-4">
+        <label for="inp-vendor-name" class="sr-only">廠商名稱</label>
         <input type="text" id="inp-vendor-name" placeholder="廠商名稱" class="flex-1 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" onkeydown="if(event.key==='Enter')addVendor()">
         <button onclick="addVendor()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 rounded-lg transition">新增</button>
       </div>
@@ -238,7 +240,7 @@
   </div>
 
   <!-- Modal: 計畫模板 -->
-  <div id="modal-template" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+  <div id="modal-template" class="modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAllModals()">
     <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
       <h3 class="text-xl font-bold dark:text-white mb-4">📋 從模板建立計畫</h3>
       <div id="template-list" class="space-y-3"></div>
@@ -249,7 +251,7 @@
   </div>
 
   <!-- Modal: 備份管理 -->
-  <div id="modal-backup" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+  <div id="modal-backup" class="modal-backdrop" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAllModals()">
     <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
       <h3 class="text-xl font-bold dark:text-white mb-4">📦 備份管理</h3>
       <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">系統每次儲存時自動備份，最多保留 7 天。</p>

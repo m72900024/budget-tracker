@@ -128,7 +128,7 @@ function renderDashboard() {
       ${proj.desc ? `<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">${escapeHtml(proj.desc)}</p>` : ''}
       ${deadlineHtml ? `<div class="mb-2">${deadlineHtml}</div>` : ''}
       <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3">
-        <div class="progress-bar ${progressColor} rounded-full h-3" style="width:${Math.min(c.percent,100)}%"></div>
+        <div class="progress-bar ${progressColor} rounded-full h-3" role="progressbar" aria-valuenow="${c.percent}" aria-valuemin="0" aria-valuemax="100" style="width:${Math.min(c.percent,100)}%"></div>
       </div>
       <div class="grid grid-cols-3 gap-2 text-center text-sm">
         <div><p class="text-gray-400">預算</p><p class="font-bold text-gray-800 dark:text-white">$${fmt(c.budget)}</p></div>
