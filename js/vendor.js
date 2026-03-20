@@ -6,7 +6,7 @@ function refreshVendorDropdown() {
   const s = document.getElementById('inp-exp-vendor');
   const v = s.value;
   s.innerHTML = '<option value="">-- 不指定 --</option>';
-  BT.data.vendors.forEach(v => { s.innerHTML += `<option value="${v}">${v}</option>`; });
+  BT.data.vendors.forEach(v => { s.innerHTML += `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`; });
   s.value = v;
 }
 
@@ -18,7 +18,7 @@ function renderVendorList() {
   }
   l.innerHTML = BT.data.vendors.map((v, i) =>
     `<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-      <span class="font-medium text-gray-800 dark:text-white">🏪 ${v}</span>
+      <span class="font-medium text-gray-800 dark:text-white">🏪 ${escapeHtml(v)}</span>
       <div class="flex gap-1">
         <button onclick="renameVendor(${i})" class="text-gray-400 hover:text-primary text-sm">✏️</button>
         <button onclick="deleteVendor(${i})" class="text-gray-400 hover:text-danger text-sm">🗑️</button>

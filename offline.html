@@ -581,7 +581,9 @@
 
       let deadlineHtml = '';
       if (proj.deadline) {
-        const days = Math.ceil((new Date(proj.deadline) - new Date()) / (1000*60*60*24));
+        const today = new Date(); today.setHours(0,0,0,0);
+        const dl = new Date(proj.deadline + "T00:00:00");
+        const days = Math.ceil((dl - today) / (1000*60*60*24));
         if (days < 0) deadlineHtml = `<span class="text-xs text-danger font-bold">⚠️ 已逾期 ${-days} 天</span>`;
         else if (days <= 30) deadlineHtml = `<span class="text-xs text-warning font-bold">⏰ 剩 ${days} 天結案</span>`;
         else deadlineHtml = `<span class="text-xs text-gray-400">📅 ${proj.deadline}</span>`;
@@ -686,7 +688,9 @@
 
     const dlEl = document.getElementById('detail-deadline');
     if (proj.deadline) {
-      const days = Math.ceil((new Date(proj.deadline) - new Date()) / (1000*60*60*24));
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dl = new Date(proj.deadline + "T00:00:00");
+      const days = Math.ceil((dl - today) / (1000*60*60*24));
       if (days < 0) dlEl.innerHTML = `<span class="text-danger font-bold">⚠️ 已逾期 ${-days} 天（期限：${proj.deadline}）</span>`;
       else if (days <= 30) dlEl.innerHTML = `<span class="text-warning font-bold">⏰ 剩 ${days} 天結案（期限：${proj.deadline}）</span>`;
       else dlEl.innerHTML = `<span class="text-gray-500">📅 結案期限：${proj.deadline}（剩 ${days} 天）</span>`;
@@ -885,7 +889,7 @@
     const name = document.getElementById('inp-exp-name').value.trim();
     const amount = parseFloat(document.getElementById('inp-exp-amount').value) || 0;
     if (!name) return toast('請輸入項目名稱', 'error');
-    if (!amount) return toast('請輸入金額', 'error');
+    if (isNaN(amount) || amount < 0) return toast('請輸入金額', 'error');
     const vendor = document.getElementById('inp-exp-vendor').value;
     const date = document.getElementById('inp-exp-date').value;
     const receipt = document.getElementById('inp-exp-receipt').value.trim();
@@ -1061,6 +1065,7 @@
     a.href = URL.createObjectURL(blob);
     a.download = `budget-tracker-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('JSON 已匯出');
   };
 
@@ -1141,6 +1146,7 @@
     a.href = URL.createObjectURL(blob);
     a.download = `budget-report-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('CSV 已匯出');
   };
 

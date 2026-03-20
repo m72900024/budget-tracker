@@ -12,7 +12,9 @@ function renderDetail() {
   // 期限
   const dlEl = document.getElementById('detail-deadline');
   if (proj.deadline) {
-    const days = Math.ceil((new Date(proj.deadline) - new Date()) / (1000*60*60*24));
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dl = new Date(proj.deadline + "T00:00:00");
+    const days = Math.ceil((dl - today) / (1000*60*60*24));
     if (days < 0) dlEl.innerHTML = `<span class="text-danger font-bold">⚠️ 已逾期 ${-days} 天（期限：${proj.deadline}）</span>`;
     else if (days <= 30) dlEl.innerHTML = `<span class="text-warning font-bold">⏰ 剩 ${days} 天結案（期限：${proj.deadline}）</span>`;
     else dlEl.innerHTML = `<span class="text-gray-500">📅 結案期限：${proj.deadline}（剩 ${days} 天）</span>`;
@@ -64,7 +66,7 @@ function renderDetail() {
           <div class="flex items-center gap-2">
             <span class="text-gray-400 cursor-grab no-print" title="拖拉排序">⠿</span>
             <span class="text-sm transition-transform ${isCollapsed ? '' : 'rotate-90'}">${isCollapsed ? '▶' : '▼'}</span>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-white">${cat.name}</h3>
+            <h3 class="text-lg font-bold text-gray-800 dark:text-white">${escapeHtml(cat.name)}</h3>
           </div>
           <div class="flex gap-2 items-center">
             <span class="text-sm font-bold ${cc.remain<0?'text-danger':'text-secondary'}">剩餘 $${fmt(cc.remain)} ${cc.remain<0?'⚠️超支！':''}</span>
@@ -87,11 +89,11 @@ function renderDetail() {
                 return `<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-750 rounded-lg group">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="font-medium text-gray-800 dark:text-white">${exp.name}</span>
+                      <span class="font-medium text-gray-800 dark:text-white">${escapeHtml(exp.name)}</span>
                       <span class="px-2 py-0.5 text-xs rounded-full ${st.color} font-bold">${st.label}</span>
                     </div>
                     <div class="text-xs text-gray-400 mt-1">
-                      ${exp.date||''} ${exp.vendor?'· 🏪'+exp.vendor:''} ${exp.receipt?'· #'+exp.receipt:''} ${exp.note?'· '+exp.note:''}
+                      ${escapeHtml(exp.date||'')} ${exp.vendor?'· 🏪'+escapeHtml(exp.vendor):''} ${exp.receipt?'· #'+escapeHtml(exp.receipt):''} ${exp.note?'· '+escapeHtml(exp.note):''}
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
@@ -213,7 +215,7 @@ window.saveExpense = function() {
   const name = document.getElementById('inp-exp-name').value.trim();
   const amount = parseFloat(document.getElementById('inp-exp-amount').value) || 0;
   if (!name) return toast('請輸入項目名稱', 'error');
-  if (!amount) return toast('請輸入金額', 'error');
+  if (isNaN(amount) || amount < 0) return toast('請輸入金額', 'error');
   const vendor = document.getElementById('inp-exp-vendor').value;
   const date = document.getElementById('inp-exp-date').value;
   const receipt = document.getElementById('inp-exp-receipt').value.trim();

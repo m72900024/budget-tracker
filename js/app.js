@@ -14,7 +14,11 @@ window.BT = {
 };
 
 // ===== 工具函數 =====
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function uid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function fmt(n) { return Number(n).toLocaleString('zh-TW', {minimumFractionDigits:0, maximumFractionDigits:1}); }
 
 function calcCat(cat) {

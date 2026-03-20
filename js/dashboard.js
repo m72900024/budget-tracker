@@ -106,7 +106,9 @@ function renderDashboard() {
 
     let deadlineHtml = '';
     if (proj.deadline) {
-      const days = Math.ceil((new Date(proj.deadline) - new Date()) / (1000*60*60*24));
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dl = new Date(proj.deadline + "T00:00:00");
+      const days = Math.ceil((dl - today) / (1000*60*60*24));
       if (days < 0) deadlineHtml = `<span class="text-xs text-danger font-bold">⚠️ 已逾期 ${-days} 天</span>`;
       else if (days <= 30) deadlineHtml = `<span class="text-xs text-warning font-bold">⏰ 剩 ${days} 天結案</span>`;
       else deadlineHtml = `<span class="text-xs text-gray-400">📅 ${proj.deadline}</span>`;
@@ -118,12 +120,12 @@ function renderDashboard() {
     card.innerHTML = `
       <div class="flex justify-between items-start mb-2">
         <div>
-          <h3 class="text-xl font-bold text-gray-800 dark:text-white">${proj.name}</h3>
-          ${proj.year ? `<span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">${proj.year}</span>` : ''}
+          <h3 class="text-xl font-bold text-gray-800 dark:text-white">${escapeHtml(proj.name)}</h3>
+          ${proj.year ? `<span class="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">${escapeHtml(proj.year)}</span>` : ''}
         </div>
         <span class="text-xs px-2 py-1 rounded-full ${c.percent>90?'bg-red-100 text-danger':c.percent>70?'bg-yellow-100 text-warning':'bg-green-100 text-secondary'} font-bold">${c.percent}%</span>
       </div>
-      ${proj.desc ? `<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">${proj.desc}</p>` : ''}
+      ${proj.desc ? `<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">${escapeHtml(proj.desc)}</p>` : ''}
       ${deadlineHtml ? `<div class="mb-2">${deadlineHtml}</div>` : ''}
       <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3">
         <div class="progress-bar ${progressColor} rounded-full h-3" style="width:${Math.min(c.percent,100)}%"></div>
