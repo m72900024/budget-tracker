@@ -33,12 +33,15 @@
           <div class="flex gap-2 flex-wrap items-center">
             <button onclick="toggleDarkMode()" id="dark-toggle" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-3 rounded-lg text-sm transition">🌙</button>
             <button onclick="showVendorModal()" class="bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 text-purple-700 dark:text-purple-300 font-bold py-2 px-4 rounded-lg text-sm transition">🏪 廠商</button>
+            <button onclick="showBackupModal()" class="bg-orange-100 dark:bg-orange-900 hover:bg-orange-200 text-orange-700 dark:text-orange-300 font-bold py-2 px-4 rounded-lg text-sm transition">📦 備份</button>
             <button onclick="showTemplateModal()" class="bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-700 dark:text-blue-300 font-bold py-2 px-4 rounded-lg text-sm transition">📋 模板</button>
             <button onclick="printReport()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">🖨️ 列印</button>
-            <button onclick="exportCSV()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📊 CSV</button>
-            <button onclick="exportAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📤 匯出</button>
-            <button onclick="importAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📥 匯入</button>
+            <button onclick="exportCSV()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📊 匯出CSV</button>
+            <button onclick="importCSV()" class="bg-teal-100 dark:bg-teal-900 hover:bg-teal-200 text-teal-700 dark:text-teal-300 font-bold py-2 px-4 rounded-lg text-sm transition">📥 CSV匯入</button>
+            <button onclick="exportAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📤 JSON匯出</button>
+            <button onclick="importAll()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg text-sm transition">📥 JSON匯入</button>
             <input type="file" id="import-file" accept=".json" class="hidden">
+            <input type="file" id="import-csv-file" accept=".csv" class="hidden">
           </div>
         </div>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">管理各項計畫預算與核銷進度</p>
@@ -245,6 +248,18 @@
     </div>
   </div>
 
+  <!-- Modal: 備份管理 -->
+  <div id="modal-backup" class="modal-backdrop" onclick="if(event.target===this)closeAllModals()">
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+      <h3 class="text-xl font-bold dark:text-white mb-4">📦 備份管理</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">系統每次儲存時自動備份，最多保留 7 天。</p>
+      <div id="backup-list" class="space-y-2 max-h-[50vh] overflow-y-auto"></div>
+      <div class="mt-4">
+        <button onclick="closeAllModals()" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-lg transition">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <!-- JS 模組載入（順序重要） -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
@@ -257,6 +272,7 @@
   <script>
     // 啟動應用
     initImportListener();
+    initCSVImportListener();
     BT.init();
   </script>
 </body>
